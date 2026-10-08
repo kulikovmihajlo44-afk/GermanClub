@@ -409,6 +409,45 @@ h2.center, .subtext.center { text-align: center; }
 .form-note.visible { display: block; }
 .form-note.error { color: #ff8a7a; border-color: rgba(255,138,122,0.45); }
 
+/* contact */
+.contact-block {
+  margin-top: 2.6rem;
+  padding-top: 2.2rem;
+  border-top: 1px solid var(--hairline-soft);
+  text-align: center;
+}
+.contact-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.9rem;
+}
+.contact-mail {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 0.15rem;
+  transition: border-color 0.2s ease, opacity 0.2s ease;
+  word-break: break-word;
+}
+.contact-mail:hover { border-bottom-color: var(--ink); }
+.contact-name {
+  margin-top: 1.3rem;
+  font-size: 1rem;
+  color: #d6d6d6;
+}
+.contact-role {
+  margin-top: 0.25rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
 /* footer */
 .footer {
   border-top: 1px solid var(--hairline-soft);
@@ -540,39 +579,15 @@ h2.center, .subtext.center { text-align: center; }
   <section class="section schedule" id="schedule">
     <div class="section-inner">
       <p class="eyebrow center"><span class="mark mark-circle" aria-hidden="true"></span>Schedule</p>
-      <h2 class="center">A Week in German</h2>
+      <h2 class="center">Every Weekends</h2>
+      <p class="subtext center">from 13:00 to 16:00</p>
       <div class="sched-list">
         <div class="sched-row">
-          <p class="sched-day">Monday</p>
+          <p class="sched-day">Sunday</p>
           <div class="sched-body">
-            <h3>Konversation — Stammtisch</h3>
-            <p>Open conversation table for all levels. German only after the first five minutes.</p>
+            <h3>Introduction session</h3>
           </div>
-          <p class="sched-meta">18:00 &middot; Seminarraum 3</p>
-        </div>
-        <div class="sched-row">
-          <p class="sched-day">Wednesday</p>
-          <div class="sched-body">
-            <h3>Peer Workshops — A0 / A1</h3>
-            <p>Guided beginner sessions: alphabet, greetings, and everyday phrases in practice.</p>
-          </div>
-          <p class="sched-meta">17:30 &middot; Club Room</p>
-        </div>
-        <div class="sched-row">
-          <p class="sched-day">Thursday</p>
-          <div class="sched-body">
-            <h3>Debatte &amp; Diskurs — B2 / C1</h3>
-            <p>Structured debate on literature, politics, and culture for advanced speakers.</p>
-          </div>
-          <p class="sched-meta">19:00 &middot; Audimax, Room B</p>
-        </div>
-        <div class="sched-row">
-          <p class="sched-day">Friday</p>
-          <div class="sched-body">
-            <h3>Filmabend</h3>
-            <p>Weekly screening of German cinema with discussion afterwards.</p>
-          </div>
-          <p class="sched-meta">20:00 &middot; Kino der Universität</p>
+          <p class="sched-meta">13:00-16:00 &middot; West Hall, Seminar Room 3</p>
         </div>
       </div>
     </div>
@@ -595,11 +610,11 @@ h2.center, .subtext.center { text-align: center; }
       <form class="apply-form" name="application-form" method="POST" action="/apply" id="contact">
         <div class="field">
           <label for="fullname">Full Name</label>
-          <input type="text" id="fullname" name="fullname" placeholder="e.g. Anna Müller" required>
+          <input type="text" id="fullname" name="fullname" placeholder="Anna Müller" required>
         </div>
         <div class="field">
           <label for="email">Email Address</label>
-          <input type="email" id="email" name="email" placeholder="you@university.edu" required>
+          <input type="email" id="email" name="email" placeholder="JSIMENS@constructor.university" required>
         </div>
         <div class="field">
           <label for="level">Target Language Level</label>
@@ -614,6 +629,13 @@ h2.center, .subtext.center { text-align: center; }
         <button type="submit" class="btn-solid">Submit Application</button>
         <p class="privacy">Your data is kept private and used only for club coordination.</p>
       </form>
+
+      <div class="contact-block">
+        <p class="contact-label">Contact</p>
+        <a class="contact-mail" href="mailto:MKULKOV@constructor.university">MKULKOV@constructor.university</a>
+        <p class="contact-name">Mykhailo Kulikov</p>
+        <p class="contact-role">The club leader</p>
+      </div>
     </div>
   </section>
 
