@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
   if (!url) return res.status(500).json({ ok: false, error: 'Collector is not configured.' });
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 9000);
+  const timer = setTimeout(() => ctrl.abort(), 25000);
   try {
     const r = await fetch(url, {
       method: 'POST',
@@ -43,3 +43,4 @@ module.exports = async (req, res) => {
     clearTimeout(timer);
   }
 };
+
