@@ -1,8 +1,8 @@
 {
   "rewrites": [
-    {
-      "source": "/apply",
-      "destination": "/api/apply"
-    }
-  ]
+    { "source": "/apply", "destination": "/api/apply" }
+  ],
+  "functions": {
+    "api/apply.js": { "maxDuration": 30 }
+  }
 }
