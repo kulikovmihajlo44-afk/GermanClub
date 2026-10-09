@@ -1,0 +1,9 @@
+{
+  "name": "deutsch-klub-site",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Deutsch-Klub website: landing page, accounts (12-digit ID), portal",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0"
+  }
+}
