@@ -111,6 +111,17 @@
     <p>© 2026 Deutsch-Klub. All rights reserved.</p>
   </footer>
 
+  <!-- shown once, right after sign-up: the new ID, big, with a Copy button -->
+  <dialog class="dk-dialog" id="welcomeDlg" aria-labelledby="welTitle">
+    <p class="eyebrow"><span class="mark mark-circle" aria-hidden="true"></span>Account created</p>
+    <h2 id="welTitle">Your ID is ready</h2>
+    <p class="sub">Copy it now and keep it safe. You will type this number to log in on any phone or laptop.</p>
+    <div class="idbig" id="welId" translate="no">0000 0000 0000</div>
+    <button type="button" class="btn-solid" id="welCopy">Copy my ID</button>
+    <button type="button" class="btn-line" id="welGo" style="width:100%;margin-top:0.8rem">Continue to my portal</button>
+    <p class="alt">You can always find it again on your portal page after you log in.</p>
+  </dialog>
+
   <!-- settings -->
   <dialog class="dk-dialog" id="settings" aria-labelledby="setTitle">
     <button type="button" class="x" id="settingsClose" aria-label="Close">&times;</button>

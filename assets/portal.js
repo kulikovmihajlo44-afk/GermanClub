@@ -24,7 +24,22 @@
     $("#app").classList.remove("p-hidden");
     render();
     loadEvents();
+    if (params.get("welcome") === "1") openWelcome();
     if (params.get("welcome")) history.replaceState(null, "", "/portal");
+  }
+
+  // ---------- "your ID is ready" (right after sign-up) ----------
+  function openWelcome() {
+    var wd = $("#welcomeDlg");
+    $("#welId").textContent = user.id;
+    wd.showModal();
+    $("#welCopy").addEventListener("click", function () {
+      var b = $("#welCopy");
+      DK.copy(user.id.replace(/\s/g, "")).then(function (ok) {
+        b.textContent = ok ? "Copied ✓  Now save it somewhere safe" : "Select the number above and copy it";
+      });
+    });
+    $("#welGo").addEventListener("click", function () { wd.close(); });
   }
 
   function mountHeader() {
