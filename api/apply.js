@@ -15,8 +15,10 @@ module.exports = async (req, res) => {
 
   if (body.website) return res.status(200).json({ ok: true });          // honeypot: pretend success to bots
 
-  const fullname = String(body.fullname || '').trim().slice(0, 120);
-  const email = String(body.email || '').trim().slice(0, 200);
+  // Spreadsheet formula injection: a value starting with = + - @ would run as a formula in Google Sheets.
+  const noFormula = (v) => String(v || '').trim().replace(/^[\s=+\-@]+/, '').trim();
+  const fullname = noFormula(body.fullname).slice(0, 120);
+  const email = noFormula(body.email).slice(0, 200);
   const level = String(body.level || '').trim().toUpperCase();
   if (!fullname || !EMAIL_RE.test(email) || !LEVELS.includes(level)) {
     return res.status(400).json({ ok: false, error: 'Please check your name, e-mail and level.' });
@@ -43,4 +45,3 @@ module.exports = async (req, res) => {
     clearTimeout(timer);
   }
 };
-
