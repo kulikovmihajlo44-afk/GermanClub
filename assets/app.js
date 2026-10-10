@@ -78,7 +78,7 @@
     }
     view.innerHTML = "";
     view.appendChild(h("div", { "class": "a-wrap" }, [h("div", { "class": "a-card a-empty" }, [h("h1", { "class": "a-h1", text: "Page not found" }),
-      h("p", { "class": "a-muted", text: "This page does not exist (yet)." }), DKA.link("/app", "Back to my dashboard", "btn-solid")])]));
+      h("p", { "class": "a-muted", text: "There is no page at " + path + " (yet)." }), DKA.link("/app", "Back to my dashboard", "btn-solid")])]));
   }
   function markActive(path) {
     document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : "My app");
