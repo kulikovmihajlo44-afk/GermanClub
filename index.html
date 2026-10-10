@@ -6,7 +6,7 @@
   <script>
     // A device that is already logged in goes straight to the portal (before the page paints).
     // ?home=1 (or ?login=1 / a #section link) keeps the club website open instead.
-    try { if (localStorage.getItem("dk_in") === "1" && !/[?&](home|login)=/.test(location.search) && !location.hash) location.replace("/portal"); } catch (e) {}
+    try { if (localStorage.getItem("dk_in") === "1" && !/[?&](home|login)=/.test(location.search) && !location.hash) location.replace("/app"); } catch (e) {}
   </script>
   <script src="assets/account.js" defer></script>
   <title>Deutsch-Klub — University German Language Club</title>
@@ -28,6 +28,7 @@
       <nav class="nav-links" aria-label="Main">
         <a href="#about">About Us</a>
         <a href="#levels">Language Levels</a>
+        <a href="/test">Placement Test</a>
         <a href="#schedule">Schedule</a>
         <a href="#contact">Contact</a>
         <a href="#join" class="btn-pill">Join Now</a>
@@ -205,7 +206,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var qs = new URLSearchParams(location.search);
   var loggedIn = DK.hint.get();
   DK.mountMenu(document.getElementById("acct"), loggedIn
-    ? [{ label: "My portal", onClick: function () { location.href = "/portal"; } }]
+    ? [{ label: "My app", onClick: function () { location.href = "/app"; } }]
     : [{ label: "Log in", onClick: DK.openLogin }, { label: "Sign up", onClick: DK.goSignup }]);
   var bar = document.getElementById("regbar"), barGone = false;
   try { barGone = sessionStorage.getItem("dk_bar") === "x"; } catch (e) {}
@@ -223,9 +224,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (r.status !== 200 || !r.j.ok) return;
       DK.hint.set(true);
       if (qs.get("home") || qs.get("login") || location.hash) {
-        DK.mountMenu(document.getElementById("acct"), [{ label: "My portal", onClick: function () { location.href = "/portal"; } }]);
+        DK.mountMenu(document.getElementById("acct"), [{ label: "My app", onClick: function () { location.href = "/app"; } }]);
         bar.hidden = true;
-      } else { location.replace("/portal"); }
+      } else { location.replace("/app"); }
     }).catch(function () {});
   }
 
@@ -281,9 +282,9 @@ document.addEventListener("DOMContentLoaded", function () {
         if (res.status === 200 && res.j.ok) {
           if (res.j.user) {                       // account created -> straight to the portal (it shows the new ID)
             DK.hint.set(true);
-            note.textContent = "Danke! Your account is ready — taking you to your portal…";
+            note.textContent = "Danke! Your account is ready — taking you to your dashboard…";
             note.classList.add("visible");
-            location.href = "/portal?welcome=1";
+            location.href = "/app?welcome=1";
             return;
           }
           if (res.j.duplicate) {

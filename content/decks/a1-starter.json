@@ -1,0 +1,157 @@
+{
+ "id": "a1-starter",
+ "level": "A1",
+ "title": "A1 starter — 30 core words",
+ "cards": [
+  {
+   "front": "Guten Tag",
+   "back": "hello (formal)",
+   "example": "Guten Tag, Frau Weber."
+  },
+  {
+   "front": "Tschüss",
+   "back": "bye",
+   "example": "Tschüss, bis bald!"
+  },
+  {
+   "front": "bitte",
+   "back": "please / you’re welcome",
+   "example": "Einen Kaffee, bitte."
+  },
+  {
+   "front": "danke",
+   "back": "thank you",
+   "example": "Danke für die Hilfe."
+  },
+  {
+   "front": "ja",
+   "back": "yes",
+   "example": "Ja, gern."
+  },
+  {
+   "front": "nein",
+   "back": "no",
+   "example": "Nein, danke."
+  },
+  {
+   "front": "heißen",
+   "back": "to be called",
+   "example": "Ich heiße Mia."
+  },
+  {
+   "front": "kommen",
+   "back": "to come",
+   "example": "Ich komme aus Bremen."
+  },
+  {
+   "front": "wohnen",
+   "back": "to live (reside)",
+   "example": "Wir wohnen in Bremen."
+  },
+  {
+   "front": "sein",
+   "back": "to be",
+   "example": "Ich bin Studentin."
+  },
+  {
+   "front": "haben",
+   "back": "to have",
+   "example": "Ich habe eine Frage."
+  },
+  {
+   "front": "essen",
+   "back": "to eat",
+   "example": "Wir essen zusammen."
+  },
+  {
+   "front": "trinken",
+   "back": "to drink",
+   "example": "Ich trinke Wasser."
+  },
+  {
+   "front": "arbeiten",
+   "back": "to work",
+   "example": "Er arbeitet viel."
+  },
+  {
+   "front": "brauchen",
+   "back": "to need",
+   "example": "Ich brauche Hilfe."
+  },
+  {
+   "front": "der Tag",
+   "back": "the day",
+   "example": "Der Tag ist lang."
+  },
+  {
+   "front": "die Woche",
+   "back": "the week",
+   "example": "Nächste Woche ist der Club."
+  },
+  {
+   "front": "die Zeit",
+   "back": "the time",
+   "example": "Ich habe keine Zeit."
+  },
+  {
+   "front": "das Wort",
+   "back": "the word",
+   "example": "Das Wort ist neu."
+  },
+  {
+   "front": "die Frage",
+   "back": "the question",
+   "example": "Ich habe eine Frage."
+  },
+  {
+   "front": "die Antwort",
+   "back": "the answer",
+   "example": "Die Antwort ist richtig."
+  },
+  {
+   "front": "der Freund",
+   "back": "the friend (male)",
+   "example": "Das ist mein Freund."
+  },
+  {
+   "front": "das Wasser",
+   "back": "the water",
+   "example": "Das Wasser ist kalt."
+  },
+  {
+   "front": "der Kaffee",
+   "back": "the coffee",
+   "example": "Der Kaffee ist heiß."
+  },
+  {
+   "front": "die Stadt",
+   "back": "the city",
+   "example": "Bremen ist eine Stadt."
+  },
+  {
+   "front": "das Buch",
+   "back": "the book",
+   "example": "Das Buch ist gut."
+  },
+  {
+   "front": "oft",
+   "back": "often",
+   "example": "Ich lese oft."
+  },
+  {
+   "front": "immer",
+   "back": "always",
+   "example": "Er ist immer pünktlich."
+  },
+  {
+   "front": "wo",
+   "back": "where",
+   "example": "Wo wohnst du?"
+  },
+  {
+   "front": "ich",
+   "back": "I",
+   "example": "Ich bin Anna."
+  }
+ ]
+}

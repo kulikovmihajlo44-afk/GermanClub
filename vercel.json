@@ -4,6 +4,10 @@
     {
       "source": "/apply",
       "destination": "/api/apply"
+    },
+    {
+      "source": "/app/:path*",
+      "destination": "/app.html"
     }
   ],
   "functions": {
@@ -37,6 +41,23 @@
           "value": "public, max-age=2592000"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/portal",
+      "destination": "/app",
+      "permanent": false
+    },
+    {
+      "source": "/login",
+      "destination": "/?login=1",
+      "permanent": false
+    },
+    {
+      "source": "/signup",
+      "destination": "/?home=1#contact",
+      "permanent": false
     }
   ]
 }

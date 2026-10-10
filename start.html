@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050505">
+  <title>Start — Deutsch-Klub</title>
+  <meta name="description" content="Start learning German with Deutsch-Klub: a free placement test, a grammar-first course and a weekly club.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body class="page">
+  <header id="top"></header>
+  <main class="t-wrap">
+    <p class="eyebrow"><span class="mark mark-circle" aria-hidden="true"></span>Start</p>
+    <h1 class="a-h1">Learn German the clear way</h1>
+    <p class="a-muted">Explicit grammar, spaced-repetition cards and a weekly club. Begin with a free 5-minute placement test, then your own plan. What is your goal?</p>
+    <div class="s-goals" id="goals">
+      <button type="button" class="a-choice" data-goal="goethe"><strong>Goethe exam</strong><span>Prepare for a Goethe-Zertifikat</span></button>
+      <button type="button" class="a-choice" data-goal="career"><strong>Career</strong><span>German for study, work and life in Germany</span></button>
+      <button type="button" class="a-choice" data-goal="interest"><strong>Personal interest</strong><span>Because you enjoy the language</span></button>
+    </div>
+    <p class="a-muted a-small">Already have an ID? <a href="/login" id="startLogin">Log in</a></p>
+    <div class="s-qr"><img src="/assets/qr-start.svg" alt="QR code for germanstudy.tech/start" width="120" height="120"><p class="a-muted a-small">Share this page with a friend: scan the code or send the link <strong>germanstudy.tech/start</strong>.</p></div>
+  </main>
+  <script src="/assets/account.js"></script>
+  <script src="/assets/nav.js"></script>
+  <script>
+  (function () {
+    DK.renderHeader(document.getElementById("top"), "public");
+    var q = new URLSearchParams(location.search), goals = ["goethe", "career", "interest"];
+    function go(g) { try { localStorage.setItem("dk_goal", g); } catch (e) {} location.href = "/test"; }
+    document.querySelectorAll("[data-goal]").forEach(function (b) { b.addEventListener("click", function () { go(b.getAttribute("data-goal")); }); });
+    if (goals.indexOf(q.get("goal")) > -1) { try { localStorage.setItem("dk_goal", q.get("goal")); } catch (e) {} var on = document.querySelector('[data-goal="' + q.get("goal") + '"]'); if (on) on.classList.add("on"); }
+    document.getElementById("startLogin").addEventListener("click", function (e) { e.preventDefault(); DK.openLogin(); });
+  })();
+  </script>
+</body>
+</html>

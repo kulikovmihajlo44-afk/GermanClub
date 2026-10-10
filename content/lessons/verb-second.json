@@ -1,0 +1,207 @@
+{
+ "id": "verb-second",
+ "level": "A1",
+ "title": "The verb is in second position",
+ "minutes": 10,
+ "intro": "The single most useful word-order rule in German. Learn it once and half of your sentences are already correct.",
+ "examples": [
+  {
+   "de": "Ich *lerne* heute Deutsch.",
+   "en": "I am learning German today."
+  },
+  {
+   "de": "Heute *lerne* ich Deutsch.",
+   "en": "Today I am learning German. (same meaning; “today” is stressed)"
+  },
+  {
+   "de": "Im Club *sprechen* wir nur Deutsch.",
+   "en": "In the club we speak only German."
+  },
+  {
+   "de": "Am Sonntag *treffen* wir uns um 13 Uhr.",
+   "en": "On Sunday we meet at 1 pm."
+  },
+  {
+   "de": "Wann *beginnt* der Kurs?",
+   "en": "When does the course begin?"
+  }
+ ],
+ "rule": "In a German statement the conjugated verb is always the second element, whatever stands in first position.",
+ "note": "“Position 1” can be one word (Heute) or a whole group of words (Am Sonntag, Im Club) — the verb simply comes right after it.",
+ "table": {
+  "headers": [
+   "Position 1",
+   "Position 2 (verb)",
+   "The rest"
+  ],
+  "rows": [
+   [
+    "Ich",
+    "lerne",
+    "heute Deutsch."
+   ],
+   [
+    "Heute",
+    "lerne",
+    "ich Deutsch."
+   ],
+   [
+    "Im Club",
+    "sprechen",
+    "wir nur Deutsch."
+   ],
+   [
+    "Am Sonntag",
+    "treffen",
+    "wir uns um 13 Uhr."
+   ],
+   [
+    "Wann",
+    "beginnt",
+    "der Kurs?"
+   ]
+  ]
+ },
+ "errors": [
+  {
+   "wrong": "Heute ich lerne Deutsch.",
+   "right": "Heute lerne ich Deutsch.",
+   "who": "English and Ukrainian speakers",
+   "why": "“Today I learn…” and «Сьогодні я вчу…» keep the subject right after the time word. German does not: after “heute” the verb must still be second, so the subject moves behind it."
+  },
+  {
+   "wrong": "Ich heute lerne Deutsch.",
+   "right": "Ich lerne heute Deutsch.",
+   "who": "Ukrainian speakers",
+   "why": "Ukrainian word order is flexible, so the verb can drift to the end. In German the verb stays in position 2; time words come after it."
+  },
+  {
+   "wrong": "Im Club wir sprechen nur Deutsch.",
+   "right": "Im Club sprechen wir nur Deutsch.",
+   "who": "English and Ukrainian speakers",
+   "why": "“Im Club” is one block and fills position 1. The verb follows it directly — the subject “wir” comes after the verb."
+  }
+ ],
+ "exercises": [
+  {
+   "type": "choice",
+   "prompt": "Choose the correct sentence.",
+   "options": [
+    "Morgen ich gehe in die Uni.",
+    "Morgen gehe ich in die Uni.",
+    "Morgen ich in die Uni gehe.",
+    "Ich morgen gehe in die Uni."
+   ],
+   "answer": 1,
+   "explain": "“Morgen” is position 1, the verb “gehe” must be position 2, then the subject “ich”."
+  },
+  {
+   "type": "choice",
+   "prompt": "Which word is in position 2?  “Am Sonntag treffen wir uns im Seminarraum.”",
+   "options": [
+    "wir",
+    "treffen",
+    "Am Sonntag",
+    "uns"
+   ],
+   "answer": 1,
+   "explain": "“Am Sonntag” is one block = position 1. The verb “treffen” is position 2."
+  },
+  {
+   "type": "choice",
+   "prompt": "Complete:  “Heute ___ ich Kaffee.”",
+   "options": [
+    "trinke",
+    "ich trinke",
+    "trinkst",
+    "Kaffee"
+   ],
+   "answer": 0,
+   "explain": "Heute (1) + verb (2) + ich. “trinke” matches “ich”; “trinkst” would be for “du”."
+  },
+  {
+   "type": "choice",
+   "prompt": "Start with “Wir”:  “Im Club sprechen wir nur Deutsch.”  Which version is a correct statement?",
+   "options": [
+    "Wir sprechen im Club nur Deutsch.",
+    "Wir im Club sprechen nur Deutsch.",
+    "Wir nur Deutsch sprechen im Club.",
+    "Sprechen wir im Club nur Deutsch."
+   ],
+   "answer": 0,
+   "explain": "“Wir” (1) + “sprechen” (2). The last option starts with the verb: that is a yes/no question, not a statement."
+  },
+  {
+   "type": "gap",
+   "prompt": "Jetzt ___ ich Deutsch.  (lernen)",
+   "answers": [
+    "lerne"
+   ],
+   "explain": "Jetzt (1) + lerne (2) + ich: “Jetzt lerne ich Deutsch.”"
+  },
+  {
+   "type": "gap",
+   "prompt": "Am Montag ___ wir in die Uni.  (gehen)",
+   "answers": [
+    "gehen"
+   ],
+   "explain": "“Am Montag” (1) + gehen (2) + wir: “Am Montag gehen wir in die Uni.”"
+  }
+ ],
+ "cards": {
+  "deck": "lesson-verb-second",
+  "title": "New words from this lesson",
+  "cards": [
+   {
+    "front": "heute",
+    "back": "today",
+    "example": "Heute lerne ich Deutsch."
+   },
+   {
+    "front": "morgen",
+    "back": "tomorrow",
+    "example": "Morgen gehe ich in die Uni."
+   },
+   {
+    "front": "jetzt",
+    "back": "now",
+    "example": "Jetzt lerne ich Deutsch."
+   },
+   {
+    "front": "nur",
+    "back": "only",
+    "example": "Im Club sprechen wir nur Deutsch."
+   },
+   {
+    "front": "lernen",
+    "back": "to learn",
+    "example": "Ich lerne Deutsch."
+   },
+   {
+    "front": "sprechen",
+    "back": "to speak",
+    "example": "Wir sprechen Deutsch."
+   },
+   {
+    "front": "gehen",
+    "back": "to go",
+    "example": "Wir gehen in die Uni."
+   },
+   {
+    "front": "treffen",
+    "back": "to meet",
+    "example": "Wir treffen uns am Sonntag."
+   },
+   {
+    "front": "der Kurs",
+    "back": "the course",
+    "example": "Wann beginnt der Kurs?"
+   },
+   {
+    "front": "die Uni",
+    "back": "the university",
+    "example": "Ich gehe in die Uni."
+   }
+  ]
+ }
+}

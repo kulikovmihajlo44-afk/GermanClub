@@ -19,6 +19,12 @@
     });
   };
 
+  // where to go after logging in: ?next=/app/... (only our own app/test pages), otherwise the dashboard
+  DK.nextUrl = function () {
+    var m = /[?&]next=([^&#]+)/.exec(location.search), n = m ? decodeURIComponent(m[1]) : "";
+    return /^\/(app|test)(\/|\?|$)/.test(n) && n.indexOf("//") === -1 ? n : "/app";
+  };
+
   DK.fmtId = function (digits) { return String(digits).replace(/\D/g, "").slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 "); };
 
   DK.copy = function (text) {
@@ -77,7 +83,7 @@
         if (digits.length !== 12) return;
         btn.disabled = true; btn.textContent = "Checking…"; err.textContent = "";
         DK.api("/api/login", { id: digits }).then(function (res) {
-          if (res.status === 200 && res.j.ok) { DK.hint.set(true); location.href = "/portal"; return; }
+          if (res.status === 200 && res.j.ok) { DK.hint.set(true); location.href = DK.nextUrl(); return; }
           err.textContent = res.status === 503 ? "Accounts are being set up — please try again soon." : (res.j.error || "Something went wrong, please try again.");
           input.setAttribute("aria-invalid", "true");
           btn.textContent = "Log in"; btn.disabled = input.value.replace(/\D/g, "").length !== 12;
