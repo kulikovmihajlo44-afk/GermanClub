@@ -1,7 +1,7 @@
 // One function for all member data (keeps us far below the 12-function limit of the free Vercel plan).
 //   GET  ?a=state            dashboard data (profile, latest placement, lesson progress, card counts)
-//   GET  ?a=test.questions   placement test questions (public, no answer key)
-//   POST ?a=test.submit      {answers:{id:index}}  -> {level, skills, score, total, saved}   (public; saved only when logged in)
+//   GET  ?a=test.questions[&level=A1]   one level block (15 questions) of the placement test (public, no answer key)
+//   POST ?a=test.submit      {answers:{id:index}, final?:false}  -> {level, skills, score, total, per_level, next, saved}   (public; saved only when logged in and not a checkpoint)
 //   POST ?a=onboarding       {goal, interests[], minutes, exam_date?}
 //   POST ?a=lesson.done      {topic, score, total}
 //   POST ?a=cards.add        {deck, source?, cards:[{front, back, example?}]}
@@ -61,18 +61,19 @@ module.exports = H.handler(async (req, res) => {
   const now = new Date();
 
   // ---- public: placement test
-  if (a === 'test.questions' && !isPost) return H.send(res, 200, { ok: true, questions: P.publicQuestions() });
+  if (a === 'test.questions' && !isPost) return H.send(res, 200, { ok: true, questions: P.publicQuestions(new URL(req.url, 'http://x').searchParams.get('level')) });
   if (a === 'test.submit' && isPost) {
     const given = body.answers && typeof body.answers === 'object' ? body.answers : null;
     if (!given) return bad(res);
-    const clean = {}; for (const it of P.ITEMS) clean[it.id] = Number.isInteger(given[it.id]) && given[it.id] >= 0 && given[it.id] < it.options.length ? given[it.id] : -1;
+    const clean = {};   // only questions that were actually answered count as taken (a missing level = not attempted)
+    for (const it of P.ITEMS) if (Object.prototype.hasOwnProperty.call(given, it.id)) clean[it.id] = Number.isInteger(given[it.id]) && given[it.id] >= 0 && given[it.id] < it.options.length ? given[it.id] : -1;
     const result = P.score(clean);
     const user = await H.currentUser(req);
-    if (user) {
+    if (user && body.final !== false && result.total > 0) {
       await db.query(`INSERT INTO placement_results (user_id, level, skills, score, total, answers) VALUES ($1, $2, $3::jsonb, $4, $5, $6::jsonb)`,
         [user.id, result.level, JSON.stringify(result.skills), result.score, result.total, JSON.stringify(clean)]);
     }
-    return H.send(res, 200, { ok: true, ...result, saved: !!user });
+    return H.send(res, 200, { ok: true, ...result, saved: !!user && body.final !== false && result.total > 0 });
   }
 
   // ---- everything below needs a logged-in member

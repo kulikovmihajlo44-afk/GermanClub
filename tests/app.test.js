@@ -28,19 +28,22 @@ const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i
 
 (async () => {
   console.log('Placement test');
-  let r = await A('test.questions'); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.questions.length, 30);
-  assert.ok(r.body.questions.every((q) => !('a' in q) && !('level' in q) && q.options.length === 4)); ok('30 questions, public, no answer key and no level leaked');
-  const skillsCount = {}; P.ITEMS.forEach((i) => { skillsCount[i.skill + i.level] = (skillsCount[i.skill + i.level] || 0) + 1; });
-  assert.ok(Object.values(skillsCount).every((n) => n === 2) && Object.keys(skillsCount).length === 15); ok('exactly 2 questions per skill and level');
+  let r = await A('test.questions'); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.questions.length, 15);
+  assert.ok(r.body.questions.every((q) => q.id.startsWith('A1-') && !('a' in q) && !('ans' in q) && q.options.length === 4)); ok('default block = 15 A1 questions, public, no answer key');
+  r = await A('test.questions&level=B1'); assert.ok(r.body.questions.length === 15 && r.body.questions.every((q) => q.id.startsWith('B1-'))); ok('level=B1 returns only that level block');
+  assert.strictEqual(P.ITEMS.length, 75); assert.strictEqual(P.PASS, 12);
+  assert.ok(P.LEVELS.every((L) => P.ITEMS.filter((i) => i.level === L).length === 15) && new Set(P.ITEMS.map((i) => i.id)).size === 75); ok('bank: 75 unique questions, 15 per level, pass mark 12');
   assert.ok(P.ITEMS.every((i) => i.a >= 0 && i.a < i.options.length && new Set(i.options).size === 4)); ok('every item has a valid key and 4 distinct options');
-  const sc = (f) => P.score(answersFor(f));
-  let s = sc(() => true); assert.strictEqual(s.level, 'C1'); assert.deepStrictEqual(Object.values(s.skills), ['C1', 'C1', 'C1']); assert.strictEqual(s.score, 30);
-  s = sc(() => false); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.score, 0); ok('all right = C1 (30/30); all wrong = A0 (0/30)');
-  s = sc((i) => i.level === 'A1'); assert.strictEqual(s.level, 'A1'); ok('only A1 answered right = A1');
-  s = sc((i) => i.level === 'A1' || i.level === 'B1'); assert.strictEqual(s.level, 'A1'); ok('a failed A2 blocks B1 (no skipping levels by luck)');
-  s = sc((i) => ['A1', 'A2', 'B1'].includes(i.level) && !(i.skill === 'reading' && i.level === 'B1')); assert.strictEqual(s.level, 'B1'); assert.ok(s.skills.grammar === 'B1' || s.skills.grammar === 'C1' || s.skills.grammar === 'B2'); ok('4 of 6 at a level passes it; skills reported separately');
+  const part = (levels, wrongN = 0) => { const out = {}; levels.forEach((L) => P.ITEMS.filter((i) => i.level === L).forEach((i, k) => { out[i.id] = k < wrongN ? (i.a + 1) % 4 : i.a; })); return out; };
+  let s = P.score(part(P.LEVELS)); assert.strictEqual(s.level, 'C1'); assert.deepStrictEqual(Object.values(s.skills), ['C1', 'C1', 'C1']); assert.strictEqual(s.score, 75); assert.strictEqual(s.total, 75); assert.strictEqual(s.next, null); ok('all 75 right = C1 in every skill, nothing left to take');
+  s = P.score(part(P.LEVELS, 15)); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.score, 0); assert.strictEqual(s.next, null); ok('all wrong = A0 and the test stops (no next part)');
+  s = P.score(part(['A1'])); assert.strictEqual(s.level, 'A1'); assert.strictEqual(s.next, 'A2'); assert.strictEqual(s.total, 15); ok('only part A1 taken and passed = A1, next part A2');
+  s = P.score(part(['A1'], 3)); assert.strictEqual(s.level, 'A1'); s = P.score(part(['A1'], 4)); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.next, null); ok('pass mark boundary: 12/15 passes, 11/15 does not (and stops)');
+  s = P.score({ ...part(['A1', 'A2']), ...part(['B2']) }); assert.strictEqual(s.level, 'A2'); assert.strictEqual(s.next, 'B1'); ok('a skipped B1 blocks B2 (no level skipping)');
+  const partial = part(['A1']); delete partial['A1-15']; s = P.score(partial); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.next, 'A1'); ok('an incomplete part does not count');
+  const rd = part(['A1', 'A2', 'B1']); rd['B1-12'] = (P.ITEMS.find((i) => i.id === 'B1-12').a + 1) % 4; s = P.score(rd); assert.strictEqual(s.level, 'B1'); assert.strictEqual(s.skills.reading, 'A2'); assert.strictEqual(s.skills.grammar, 'B1'); ok('skill levels are tracked separately (reading A2, grammar B1)');
   s = P.score(Object.fromEntries(P.ITEMS.map((i) => [i.id, -1]))); assert.strictEqual(s.level, 'A0'); ok('"I don\'t know" (-1) counts as wrong');
-  s = P.score({ g1: '0', g2: 0.0, v1: null, evil: 99 }); assert.ok(s.score <= 1); ok('malformed answers do not crash or score');
+  s = P.score({ 'A1-01': '0', 'A1-02': 0.5, 'A1-03': null, evil: 99 }); assert.ok(s.score <= 1 && s.level === 'A0'); ok('malformed answers do not crash or score');
 
   console.log('Access control');
   assert.strictEqual((await A('state')).code, 401); ok('state requires login (401)');
@@ -51,6 +54,7 @@ const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i
 
   console.log('Test results');
   r = await A('test.submit', { body: { answers: answersFor((i) => i.level === 'A1' || i.level === 'A2') } }); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.level, 'A2'); assert.strictEqual(r.body.saved, false); ok('guest gets a result (A2), nothing is saved');
+  r = await A('test.submit', { cookie: ca, body: { answers: part(['A1']), final: false } }); assert.ok(r.body.saved === false && r.body.next === 'A2'); r = await A('state', { cookie: ca }); assert.strictEqual(r.body.placement, null); ok('checkpoint (final:false) is scored but not saved');
   r = await A('test.submit', { cookie: ca, body: { answers: answersFor((i) => i.level === 'A1' || i.level === 'A2') } }); assert.strictEqual(r.body.saved, true);
   r = await A('state', { cookie: ca }); assert.strictEqual(r.body.placement.level, 'A2'); assert.strictEqual(r.body.profile.onboarded, false); assert.strictEqual(r.body.cards.total, 0); ok('member result is saved and shows in state; not onboarded yet');
   assert.strictEqual((await A('test.submit', { body: {} })).code, 400); ok('missing answers = 400');

@@ -1,0 +1,1004 @@
+{
+"set": "Deutsch-KLUB level tests",
+"levels": "A1-C1",
+"per_level": 15,
+"pass_mark": 12,
+"fields": "id,lvl,skill,ctx(reading only),q,opts,ans(exact text of correct option)",
+"items": [
+{
+"id": "A1-01",
+"lvl": "A1",
+"skill": "grammar",
+"q": "Ich _ Mykhailo.",
+"opts": [
+"heißen",
+"heißt",
+"heiß",
+"heiße"
+],
+"ans": "heiße"
+},
+{
+"id": "A1-02",
+"lvl": "A1",
+"skill": "grammar",
+"q": "Er _ in Bremen.",
+"opts": [
+"wohnst",
+"wohnen",
+"wohnt",
+"wohne"
+],
+"ans": "wohnt"
+},
+{
+"id": "A1-03",
+"lvl": "A1",
+"skill": "grammar",
+"q": "Das ist _ Buch.",
+"opts": [
+"eine",
+"einer",
+"einen",
+"ein"
+],
+"ans": "ein"
+},
+{
+"id": "A1-04",
+"lvl": "A1",
+"skill": "grammar",
+"q": "Wir _ Studenten.",
+"opts": [
+"ist",
+"bin",
+"sind",
+"seid"
+],
+"ans": "sind"
+},
+{
+"id": "A1-05",
+"lvl": "A1",
+"skill": "grammar",
+"q": "Hast du _ Bruder?",
+"opts": [
+"ein",
+"eine",
+"einem",
+"einen"
+],
+"ans": "einen"
+},
+{
+"id": "A1-06",
+"lvl": "A1",
+"skill": "grammar",
+"q": "_ kommst du? – Aus der Ukraine.",
+"opts": [
+"Wo",
+"Wer",
+"Wohin",
+"Woher"
+],
+"ans": "Woher"
+},
+{
+"id": "A1-07",
+"lvl": "A1",
+"skill": "vocab",
+"q": "Das Gegenteil von „groß“ ist …",
+"opts": [
+"kalt",
+"alt",
+"klein",
+"schnell"
+],
+"ans": "klein"
+},
+{
+"id": "A1-08",
+"lvl": "A1",
+"skill": "vocab",
+"q": "Ich möchte einen _ bestellen (im Café).",
+"opts": [
+"Bett",
+"Schuh",
+"Kaffee",
+"Bahnhof"
+],
+"ans": "Kaffee"
+},
+{
+"id": "A1-09",
+"lvl": "A1",
+"skill": "vocab",
+"q": "Wie viel _ das Brot?",
+"opts": [
+"kostet",
+"spricht",
+"heißt",
+"geht"
+],
+"ans": "kostet"
+},
+{
+"id": "A1-10",
+"lvl": "A1",
+"skill": "vocab",
+"q": "Der Bruder meiner Mutter ist mein …",
+"opts": [
+"Sohn",
+"Enkel",
+"Onkel",
+"Opa"
+],
+"ans": "Onkel"
+},
+{
+"id": "A1-11",
+"lvl": "A1",
+"skill": "vocab",
+"q": "Sieben Tage sind eine …",
+"opts": [
+"Jahr",
+"Monat",
+"Stunde",
+"Woche"
+],
+"ans": "Woche"
+},
+{
+"id": "A1-12",
+"lvl": "A1",
+"skill": "reading",
+"ctx": "Hallo! Ich bin Anna. Ich bin 20 Jahre alt und komme aus Wien. Ich studiere Medizin. Am Wochenende spiele ich Tennis. Ich habe einen Hund. Er heißt Max.",
+"q": "Woher kommt Anna?",
+"opts": [
+"Aus Kyjiw",
+"Aus Bremen",
+"Aus Berlin",
+"Aus Wien"
+],
+"ans": "Aus Wien"
+},
+{
+"id": "A1-13",
+"lvl": "A1",
+"skill": "reading",
+"ctx": "Hallo! Ich bin Anna. Ich bin 20 Jahre alt und komme aus Wien. Ich studiere Medizin. Am Wochenende spiele ich Tennis. Ich habe einen Hund. Er heißt Max.",
+"q": "Was studiert Anna?",
+"opts": [
+"Kunst",
+"Physik",
+"Medizin",
+"Jura"
+],
+"ans": "Medizin"
+},
+{
+"id": "A1-14",
+"lvl": "A1",
+"skill": "reading",
+"ctx": "Hallo! Ich bin Anna. Ich bin 20 Jahre alt und komme aus Wien. Ich studiere Medizin. Am Wochenende spiele ich Tennis. Ich habe einen Hund. Er heißt Max.",
+"q": "Was macht Anna am Wochenende?",
+"opts": [
+"Sie arbeitet.",
+"Sie schläft.",
+"Sie lernt.",
+"Sie spielt Tennis."
+],
+"ans": "Sie spielt Tennis."
+},
+{
+"id": "A1-15",
+"lvl": "A1",
+"skill": "reading",
+"ctx": "Hallo! Ich bin Anna. Ich bin 20 Jahre alt und komme aus Wien. Ich studiere Medizin. Am Wochenende spiele ich Tennis. Ich habe einen Hund. Er heißt Max.",
+"q": "Wie heißt der Hund?",
+"opts": [
+"Max",
+"Tim",
+"Leo",
+"Anna"
+],
+"ans": "Max"
+},
+{
+"id": "A2-01",
+"lvl": "A2",
+"skill": "grammar",
+"q": "Gestern _ ich im Kino.",
+"opts": [
+"wurde",
+"war",
+"habe",
+"bin"
+],
+"ans": "war"
+},
+{
+"id": "A2-02",
+"lvl": "A2",
+"skill": "grammar",
+"q": "Ich habe gestern einen Film _.",
+"opts": [
+"gesehe",
+"sehen",
+"sah",
+"gesehen"
+],
+"ans": "gesehen"
+},
+{
+"id": "A2-03",
+"lvl": "A2",
+"skill": "grammar",
+"q": "Ich fahre _ dem Bus zur Uni.",
+"opts": [
+"bei",
+"zu",
+"mit",
+"nach"
+],
+"ans": "mit"
+},
+{
+"id": "A2-04",
+"lvl": "A2",
+"skill": "grammar",
+"q": "Ich muss heute früh _.",
+"opts": [
+"aufstehst",
+"aufgestanden",
+"aufstehe",
+"aufstehen"
+],
+"ans": "aufstehen"
+},
+{
+"id": "A2-05",
+"lvl": "A2",
+"skill": "grammar",
+"q": "Ich lerne Deutsch, _ ich in Deutschland studieren möchte.",
+"opts": [
+"weil",
+"deshalb",
+"aber",
+"oder"
+],
+"ans": "weil"
+},
+{
+"id": "A2-06",
+"lvl": "A2",
+"skill": "grammar",
+"q": "Das Wetter ist heute _ als gestern.",
+"opts": [
+"besser",
+"am besten",
+"guter",
+"gut"
+],
+"ans": "besser"
+},
+{
+"id": "A2-07",
+"lvl": "A2",
+"skill": "vocab",
+"q": "Ich habe Kopfschmerzen und gehe zum …",
+"opts": [
+"Arzt",
+"Koch",
+"Lehrer",
+"Bäcker"
+],
+"ans": "Arzt"
+},
+{
+"id": "A2-08",
+"lvl": "A2",
+"skill": "vocab",
+"q": "Der Zug fährt von _ 3 ab.",
+"opts": [
+"Glas",
+"Gleich",
+"Gericht",
+"Gleis"
+],
+"ans": "Gleis"
+},
+{
+"id": "A2-09",
+"lvl": "A2",
+"skill": "vocab",
+"q": "Ich möchte ein Zimmer im Hotel _.",
+"opts": [
+"kochen",
+"putzen",
+"buchen",
+"gewinnen"
+],
+"ans": "buchen"
+},
+{
+"id": "A2-10",
+"lvl": "A2",
+"skill": "vocab",
+"q": "Im Supermarkt zahle ich an der …",
+"opts": [
+"Decke",
+"Kasse",
+"Küche",
+"Kerze"
+],
+"ans": "Kasse"
+},
+{
+"id": "A2-11",
+"lvl": "A2",
+"skill": "vocab",
+"q": "Das Gegenteil von „billig“ ist …",
+"opts": [
+"leicht",
+"kurz",
+"teuer",
+"nett"
+],
+"ans": "teuer"
+},
+{
+"id": "A2-12",
+"lvl": "A2",
+"skill": "reading",
+"ctx": "Lieber Tom, am Samstag mache ich eine Party in meiner neuen Wohnung. Sie ist klein, aber sehr schön. Die Party beginnt um 19 Uhr. Bitte bring etwas zu trinken mit. Kommst du? Liebe Grüße, Lisa",
+"q": "Warum schreibt Lisa?",
+"opts": [
+"Sie sagt die Party ab.",
+"Sie verkauft Getränke.",
+"Sie sucht eine Wohnung.",
+"Sie lädt Tom zur Party ein."
+],
+"ans": "Sie lädt Tom zur Party ein."
+},
+{
+"id": "A2-13",
+"lvl": "A2",
+"skill": "reading",
+"ctx": "Lieber Tom, am Samstag mache ich eine Party in meiner neuen Wohnung. Sie ist klein, aber sehr schön. Die Party beginnt um 19 Uhr. Bitte bring etwas zu trinken mit. Kommst du? Liebe Grüße, Lisa",
+"q": "Wann beginnt die Party?",
+"opts": [
+"Um 9 Uhr",
+"Am Sonntag",
+"Um 19 Uhr",
+"Um 17 Uhr"
+],
+"ans": "Um 19 Uhr"
+},
+{
+"id": "A2-14",
+"lvl": "A2",
+"skill": "reading",
+"ctx": "Lieber Tom, am Samstag mache ich eine Party in meiner neuen Wohnung. Sie ist klein, aber sehr schön. Die Party beginnt um 19 Uhr. Bitte bring etwas zu trinken mit. Kommst du? Liebe Grüße, Lisa",
+"q": "Was soll Tom mitbringen?",
+"opts": [
+"Nichts",
+"Essen",
+"Getränke",
+"Ein Geschenk"
+],
+"ans": "Getränke"
+},
+{
+"id": "A2-15",
+"lvl": "A2",
+"skill": "reading",
+"ctx": "Lieber Tom, am Samstag mache ich eine Party in meiner neuen Wohnung. Sie ist klein, aber sehr schön. Die Party beginnt um 19 Uhr. Bitte bring etwas zu trinken mit. Kommst du? Liebe Grüße, Lisa",
+"q": "Wie ist die Wohnung?",
+"opts": [
+"Klein, aber schön",
+"Groß und teuer",
+"Alt und laut",
+"Neu und groß"
+],
+"ans": "Klein, aber schön"
+},
+{
+"id": "B1-01",
+"lvl": "B1",
+"skill": "grammar",
+"q": "Ich freue mich _ das Wochenende.",
+"opts": [
+"an",
+"auf",
+"für",
+"über"
+],
+"ans": "auf"
+},
+{
+"id": "B1-02",
+"lvl": "B1",
+"skill": "grammar",
+"q": "Wenn ich mehr Zeit _, würde ich öfter reisen.",
+"opts": [
+"hätte",
+"haben",
+"hatte",
+"habe"
+],
+"ans": "hätte"
+},
+{
+"id": "B1-03",
+"lvl": "B1",
+"skill": "grammar",
+"q": "Das ist der Mann, _ ich gestern geholfen habe.",
+"opts": [
+"dem",
+"den",
+"der",
+"das"
+],
+"ans": "dem"
+},
+{
+"id": "B1-04",
+"lvl": "B1",
+"skill": "grammar",
+"q": "Obwohl es regnete, _ spazieren.",
+"opts": [
+"wir gingen",
+"gegangen wir",
+"gingen wir",
+"wir gegangen"
+],
+"ans": "gingen wir"
+},
+{
+"id": "B1-05",
+"lvl": "B1",
+"skill": "grammar",
+"q": "Gestern _ das Fenster repariert.",
+"opts": [
+"wird",
+"hat",
+"wurde",
+"werden"
+],
+"ans": "wurde"
+},
+{
+"id": "B1-06",
+"lvl": "B1",
+"skill": "grammar",
+"q": "Ich interessiere mich _ Geschichte.",
+"opts": [
+"an",
+"auf",
+"über",
+"für"
+],
+"ans": "für"
+},
+{
+"id": "B1-07",
+"lvl": "B1",
+"skill": "vocab",
+"q": "Er hat die Prüfung _, weil er viel gelernt hat.",
+"opts": [
+"bekommen",
+"bestanden",
+"verpasst",
+"gewesen"
+],
+"ans": "bestanden"
+},
+{
+"id": "B1-08",
+"lvl": "B1",
+"skill": "vocab",
+"q": "Ich möchte mich um die Stelle _.",
+"opts": [
+"bewerben",
+"besuchen",
+"bestellen",
+"benutzen"
+],
+"ans": "bewerben"
+},
+{
+"id": "B1-09",
+"lvl": "B1",
+"skill": "vocab",
+"q": "Die _ für das Zimmer beträgt 300 Euro im Monat.",
+"opts": [
+"Rechnung",
+"Miete",
+"Zinsen",
+"Steuer"
+],
+"ans": "Miete"
+},
+{
+"id": "B1-10",
+"lvl": "B1",
+"skill": "vocab",
+"q": "Das Gegenteil von „zustimmen“ ist …",
+"opts": [
+"vorschlagen",
+"widmen",
+"verstehen",
+"widersprechen"
+],
+"ans": "widersprechen"
+},
+{
+"id": "B1-11",
+"lvl": "B1",
+"skill": "vocab",
+"q": "Wir haben den Kurs _, weil zu wenige Teilnehmer da waren.",
+"opts": [
+"abgebaut",
+"abgegeben",
+"abgesagt",
+"abgeholt"
+],
+"ans": "abgesagt"
+},
+{
+"id": "B1-12",
+"lvl": "B1",
+"skill": "reading",
+"ctx": "Immer mehr Studierende arbeiten neben dem Studium. Viele brauchen das Geld für Miete und Lebensmittel, andere wollen praktische Erfahrungen sammeln. Experten warnen jedoch: Wer zu viel arbeitet, hat weniger Zeit zum Lernen und braucht oft länger bis zum Abschluss.",
+"q": "Warum arbeiten viele Studierende?",
+"opts": [
+"Das Gesetz verlangt es.",
+"Sie haben zu viel Zeit.",
+"Sie brauchen Geld oder wollen Erfahrung.",
+"Sie wollen schneller fertig werden."
+],
+"ans": "Sie brauchen Geld oder wollen Erfahrung."
+},
+{
+"id": "B1-13",
+"lvl": "B1",
+"skill": "reading",
+"ctx": "Immer mehr Studierende arbeiten neben dem Studium. Viele brauchen das Geld für Miete und Lebensmittel, andere wollen praktische Erfahrungen sammeln. Experten warnen jedoch: Wer zu viel arbeitet, hat weniger Zeit zum Lernen und braucht oft länger bis zum Abschluss.",
+"q": "Wovor warnen die Experten?",
+"opts": [
+"Das Studium wird billiger.",
+"Arbeit ist verboten.",
+"Es gibt zu wenige Jobs.",
+"Zu viel Arbeit kann das Studium verlängern."
+],
+"ans": "Zu viel Arbeit kann das Studium verlängern."
+},
+{
+"id": "B1-14",
+"lvl": "B1",
+"skill": "reading",
+"ctx": "Immer mehr Studierende arbeiten neben dem Studium. Viele brauchen das Geld für Miete und Lebensmittel, andere wollen praktische Erfahrungen sammeln. Experten warnen jedoch: Wer zu viel arbeitet, hat weniger Zeit zum Lernen und braucht oft länger bis zum Abschluss.",
+"q": "Was bedeutet „Abschluss“ im Text?",
+"opts": [
+"Eine Wohnung",
+"Das erfolgreiche Ende des Studiums",
+"Ein Nebenjob",
+"Der Studienbeginn"
+],
+"ans": "Das erfolgreiche Ende des Studiums"
+},
+{
+"id": "B1-15",
+"lvl": "B1",
+"skill": "reading",
+"ctx": "Immer mehr Studierende arbeiten neben dem Studium. Viele brauchen das Geld für Miete und Lebensmittel, andere wollen praktische Erfahrungen sammeln. Experten warnen jedoch: Wer zu viel arbeitet, hat weniger Zeit zum Lernen und braucht oft länger bis zum Abschluss.",
+"q": "Welche Aussage passt zum Text?",
+"opts": [
+"Alle Studierenden arbeiten.",
+"Nebenjobs haben Vor- und Nachteile.",
+"Nebenjobs sind unnötig.",
+"Nebenjobs sind immer gut."
+],
+"ans": "Nebenjobs haben Vor- und Nachteile."
+},
+{
+"id": "B2-01",
+"lvl": "B2",
+"skill": "grammar",
+"q": "Er tat so, als _ er alles verstanden.",
+"opts": [
+"hatte",
+"hätte",
+"haben",
+"hat"
+],
+"ans": "hätte"
+},
+{
+"id": "B2-02",
+"lvl": "B2",
+"skill": "grammar",
+"q": "_ des schlechten Wetters fand das Konzert statt.",
+"opts": [
+"Damit",
+"Obwohl",
+"Wegen",
+"Trotz"
+],
+"ans": "Trotz"
+},
+{
+"id": "B2-03",
+"lvl": "B2",
+"skill": "grammar",
+"q": "Die Studie, _ Ergebnisse veröffentlicht wurden, ist umstritten.",
+"opts": [
+"dessen",
+"derer",
+"deren",
+"welche"
+],
+"ans": "deren"
+},
+{
+"id": "B2-04",
+"lvl": "B2",
+"skill": "grammar",
+"q": "Wäre er pünktlich gekommen, _ wir den Zug nicht verpasst.",
+"opts": [
+"wären",
+"hätten",
+"haben",
+"hatten"
+],
+"ans": "hätten"
+},
+{
+"id": "B2-05",
+"lvl": "B2",
+"skill": "grammar",
+"q": "Die Verhandlungen sollen bis Freitag _ werden.",
+"opts": [
+"abschließen",
+"abgeschlossene",
+"schlossen ab",
+"abgeschlossen"
+],
+"ans": "abgeschlossen"
+},
+{
+"id": "B2-06",
+"lvl": "B2",
+"skill": "grammar",
+"q": "Er ist _ intelligent _ fleißig.",
+"opts": [
+"je – desto",
+"entweder – als",
+"weder – als auch",
+"sowohl – als auch"
+],
+"ans": "sowohl – als auch"
+},
+{
+"id": "B2-07",
+"lvl": "B2",
+"skill": "vocab",
+"q": "Die Regierung will die Inflation _.",
+"opts": [
+"bekommen",
+"beraten",
+"betreten",
+"bekämpfen"
+],
+"ans": "bekämpfen"
+},
+{
+"id": "B2-08",
+"lvl": "B2",
+"skill": "vocab",
+"q": "Er verhielt sich _ und ergriff keine Partei.",
+"opts": [
+"zurückhaltend",
+"leichtsinnig",
+"überheblich",
+"aufdringlich"
+],
+"ans": "zurückhaltend"
+},
+{
+"id": "B2-09",
+"lvl": "B2",
+"skill": "vocab",
+"q": "Wir müssen die Frist unbedingt _, sonst verlieren wir den Auftrag.",
+"opts": [
+"einhalten",
+"einsetzen",
+"einleiten",
+"einholen"
+],
+"ans": "einhalten"
+},
+{
+"id": "B2-10",
+"lvl": "B2",
+"skill": "vocab",
+"q": "Eine Meinung, die man ohne Beweise übernimmt, ist ein …",
+"opts": [
+"Vorteil",
+"Vorurteil",
+"Vorschlag",
+"Vorbild"
+],
+"ans": "Vorurteil"
+},
+{
+"id": "B2-11",
+"lvl": "B2",
+"skill": "vocab",
+"q": "Die Preise sind im letzten Jahr deutlich ___.",
+"opts": [
+"gestiegen",
+"gestanden",
+"gesteigert",
+"gestürzt"
+],
+"ans": "gestiegen"
+},
+{
+"id": "B2-12",
+"lvl": "B2",
+"skill": "reading",
+"ctx": "Homeoffice galt lange als Privileg weniger Beschäftigter. Seit der Pandemie hat sich das geändert: Viele Unternehmen bieten flexible Modelle an. Befürworter betonen die gewonnene Zeit und die bessere Vereinbarkeit von Beruf und Familie. Kritiker fürchten dagegen, dass der spontane Austausch im Team verloren geht und die Grenze zwischen Arbeit und Freizeit verschwimmt.",
+"q": "Was hat sich seit der Pandemie verändert?",
+"opts": [
+"Homeoffice ist weit verbreitet.",
+"Homeoffice wurde verboten.",
+"Nur wenige arbeiten zu Hause.",
+"Büros sind teurer."
+],
+"ans": "Homeoffice ist weit verbreitet."
+},
+{
+"id": "B2-13",
+"lvl": "B2",
+"skill": "reading",
+"ctx": "Homeoffice galt lange als Privileg weniger Beschäftigter. Seit der Pandemie hat sich das geändert: Viele Unternehmen bieten flexible Modelle an. Befürworter betonen die gewonnene Zeit und die bessere Vereinbarkeit von Beruf und Familie. Kritiker fürchten dagegen, dass der spontane Austausch im Team verloren geht und die Grenze zwischen Arbeit und Freizeit verschwimmt.",
+"q": "Was schätzen die Befürworter?",
+"opts": [
+"Mehr spontane Gespräche",
+"Höhere Gehälter",
+"Strengere Arbeitszeiten",
+"Zeitgewinn und Vereinbarkeit mit der Familie"
+],
+"ans": "Zeitgewinn und Vereinbarkeit mit der Familie"
+},
+{
+"id": "B2-14",
+"lvl": "B2",
+"skill": "reading",
+"ctx": "Homeoffice galt lange als Privileg weniger Beschäftigter. Seit der Pandemie hat sich das geändert: Viele Unternehmen bieten flexible Modelle an. Befürworter betonen die gewonnene Zeit und die bessere Vereinbarkeit von Beruf und Familie. Kritiker fürchten dagegen, dass der spontane Austausch im Team verloren geht und die Grenze zwischen Arbeit und Freizeit verschwimmt.",
+"q": "Was kritisieren die Kritiker?",
+"opts": [
+"Zu viel Kontrolle",
+"Zu wenig Technik",
+"Zu hohe Kosten",
+"Weniger Austausch und verschwimmende Grenzen"
+],
+"ans": "Weniger Austausch und verschwimmende Grenzen"
+},
+{
+"id": "B2-15",
+"lvl": "B2",
+"skill": "reading",
+"ctx": "Homeoffice galt lange als Privileg weniger Beschäftigter. Seit der Pandemie hat sich das geändert: Viele Unternehmen bieten flexible Modelle an. Befürworter betonen die gewonnene Zeit und die bessere Vereinbarkeit von Beruf und Familie. Kritiker fürchten dagegen, dass der spontane Austausch im Team verloren geht und die Grenze zwischen Arbeit und Freizeit verschwimmt.",
+"q": "„verschwimmt“ bedeutet hier …",
+"opts": [
+"wird teurer",
+"wird unklar",
+"wird strenger",
+"wird größer"
+],
+"ans": "wird unklar"
+},
+{
+"id": "C1-01",
+"lvl": "C1",
+"skill": "grammar",
+"q": "Die Regierung will das Projekt zur Diskussion _.",
+"opts": [
+"setzen",
+"legen",
+"führen",
+"stellen"
+],
+"ans": "stellen"
+},
+{
+"id": "C1-02",
+"lvl": "C1",
+"skill": "grammar",
+"q": "Die von den Forschern _ Ergebnisse überraschten alle.",
+"opts": [
+"veröffentlichte",
+"veröffentlicht",
+"veröffentlichten",
+"veröffentlichend"
+],
+"ans": "veröffentlichten"
+},
+{
+"id": "C1-03",
+"lvl": "C1",
+"skill": "grammar",
+"q": "___ man die Zahlen genauer, erkennt man den Trend.",
+"opts": [
+"Betrachten",
+"Wenn betrachtet",
+"Betrachtet",
+"Betrachtend"
+],
+"ans": "Betrachtet"
+},
+{
+"id": "C1-04",
+"lvl": "C1",
+"skill": "grammar",
+"q": "Er soll das Geld unterschlagen _.",
+"opts": [
+"haben",
+"hat",
+"hatte",
+"habe"
+],
+"ans": "haben"
+},
+{
+"id": "C1-05",
+"lvl": "C1",
+"skill": "grammar",
+"q": "Wäre das Projekt nicht gefördert worden, _ es nie realisiert werden können.",
+"opts": [
+"hatte",
+"hätte",
+"würde",
+"wäre"
+],
+"ans": "hätte"
+},
+{
+"id": "C1-06",
+"lvl": "C1",
+"skill": "grammar",
+"q": "Er ist stolz _, den Preis gewonnen zu haben.",
+"opts": [
+"dafür",
+"daran",
+"darauf",
+"damit"
+],
+"ans": "darauf"
+},
+{
+"id": "C1-07",
+"lvl": "C1",
+"skill": "vocab",
+"q": "Die Studie liefert _ Hinweise darauf, dass der Effekt real ist.",
+"opts": [
+"belastende",
+"belastete",
+"belastbare",
+"beladene"
+],
+"ans": "belastbare"
+},
+{
+"id": "C1-08",
+"lvl": "C1",
+"skill": "vocab",
+"q": "Seine Aussagen waren so ___, dass man sie auf verschiedene Weisen deuten konnte.",
+"opts": [
+"einmalig",
+"eindeutig",
+"einseitig",
+"mehrdeutig"
+],
+"ans": "mehrdeutig"
+},
+{
+"id": "C1-09",
+"lvl": "C1",
+"skill": "vocab",
+"q": "Etwas, das ohne große Anstrengung geschieht, geschieht …",
+"opts": [
+"mühelos",
+"vergebens",
+"mühsam",
+"nachlässig"
+],
+"ans": "mühelos"
+},
+{
+"id": "C1-10",
+"lvl": "C1",
+"skill": "vocab",
+"q": "Der Politiker gab sich _, obwohl er innerlich unsicher war.",
+"opts": [
+"ratlos",
+"souverän",
+"kleinlaut",
+"zornig"
+],
+"ans": "souverän"
+},
+{
+"id": "C1-11",
+"lvl": "C1",
+"skill": "vocab",
+"q": "Das Unternehmen kann seine Schulden nicht mehr bezahlen und steht kurz vor der _.",
+"opts": [
+"Inszenierung",
+"Instanz",
+"Investition",
+"Insolvenz"
+],
+"ans": "Insolvenz"
+},
+{
+"id": "C1-12",
+"lvl": "C1",
+"skill": "reading",
+"ctx": "Die Debatte um künstliche Intelligenz kreist häufig um Arbeitsplätze, doch eine subtilere Veränderung wird oft übersehen: Wer Entscheidungen zunehmend an Algorithmen delegiert, verlernt womöglich, selbst abzuwägen. Die Gefahr liegt weniger in fehlerhaften Systemen als in der schleichenden Gewöhnung an ihre scheinbare Unfehlbarkeit.",
+"q": "Worauf will der Autor aufmerksam machen?",
+"opts": [
+"Auf drohende Massenarbeitslosigkeit",
+"Auf die hohen Kosten von KI",
+"Auf den möglichen Verlust eigener Urteilsfähigkeit",
+"Auf technische Fehler der Systeme"
+],
+"ans": "Auf den möglichen Verlust eigener Urteilsfähigkeit"
+},
+{
+"id": "C1-13",
+"lvl": "C1",
+"skill": "reading",
+"ctx": "Die Debatte um künstliche Intelligenz kreist häufig um Arbeitsplätze, doch eine subtilere Veränderung wird oft übersehen: Wer Entscheidungen zunehmend an Algorithmen delegiert, verlernt womöglich, selbst abzuwägen. Die Gefahr liegt weniger in fehlerhaften Systemen als in der schleichenden Gewöhnung an ihre scheinbare Unfehlbarkeit.",
+"q": "„schleichend“ beschreibt eine Entwicklung, die …",
+"opts": [
+"gesetzlich verboten ist",
+"leicht zu stoppen ist",
+"langsam und kaum bemerkt verläuft",
+"plötzlich eintritt"
+],
+"ans": "langsam und kaum bemerkt verläuft"
+},
+{
+"id": "C1-14",
+"lvl": "C1",
+"skill": "reading",
+"ctx": "Die Debatte um künstliche Intelligenz kreist häufig um Arbeitsplätze, doch eine subtilere Veränderung wird oft übersehen: Wer Entscheidungen zunehmend an Algorithmen delegiert, verlernt womöglich, selbst abzuwägen. Die Gefahr liegt weniger in fehlerhaften Systemen als in der schleichenden Gewöhnung an ihre scheinbare Unfehlbarkeit.",
+"q": "Welche Haltung zeigt der Autor?",
+"opts": [
+"Gleichgültig",
+"Besorgt, aber differenziert",
+"Aggressiv ablehnend",
+"Begeistert"
+],
+"ans": "Besorgt, aber differenziert"
+},
+{
+"id": "C1-15",
+"lvl": "C1",
+"skill": "reading",
+"ctx": "Die Debatte um künstliche Intelligenz kreist häufig um Arbeitsplätze, doch eine subtilere Veränderung wird oft übersehen: Wer Entscheidungen zunehmend an Algorithmen delegiert, verlernt womöglich, selbst abzuwägen. Die Gefahr liegt weniger in fehlerhaften Systemen als in der schleichenden Gewöhnung an ihre scheinbare Unfehlbarkeit.",
+"q": "„womöglich“ steht hier für …",
+"opts": [
+"niemals",
+"vielleicht",
+"sicherlich",
+"nachweislich"
+],
+"ans": "vielleicht"
+}
+]
+}
