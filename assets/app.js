@@ -27,7 +27,7 @@
     return e;
   }
   DKA.h = h;
-  DKA.link = function (href, text, cls) { return h("a", { href: href, "data-link": "", "class": cls || "" , text: text }); };
+  DKA.link = function (href, text, cls) { var inApp = /^\/app(\/|$|\?)/.test(href); return h("a", { href: href, "data-link": inApp ? "" : null, "class": cls || "" , text: text }); };  // only /app/... is routed in the browser; /test, /start etc. are separate pages
   DKA.json = function (u) { return fetch(u, { credentials: "same-origin" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
   DKA.route = function (re, fn) { DKA.routes.push({ re: re, fn: fn }); };
   DKA.levelName = function (l) { return LEVELS[l] || l; };
@@ -92,6 +92,7 @@
   document.addEventListener("click", function (e) {
     var a = e.target.closest && e.target.closest("a[data-link]");
     if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    if (!/^\/app(\/|$|\?)/.test(a.getAttribute("href"))) return;   // not an app route: let the browser load the page
     e.preventDefault(); DKA.nav(a.getAttribute("href"));
   });
   window.addEventListener("popstate", render);
