@@ -1,185 +1,300 @@
-// One function for all member data (keeps us far below the 12-function limit of the free Vercel plan).
-//   GET  ?a=state            dashboard data (profile, latest placement, lesson progress, card counts)
-//   GET  ?a=test.bank        the adaptive placement test's question bank with difficulty points, WITHOUT the answer key (public)
-//   POST ?a=test.check       {id, answer:index}  -> {correct}   one answer at a time (public)
-//   POST ?a=test.submit      {seq:[20 ids in the order asked], answers:{id:index|-1}}  -> {level, points, border, skills, score, total, saved}   (public; saved only when logged in)
-//   POST ?a=onboarding       {goal, interests[], minutes, exam_date?}
-//   POST ?a=lesson.done      {topic, score, total}
-//   POST ?a=cards.add        {deck, source?, cards:[{front, back, example?}]}
-//   GET  ?a=cards.due        today's queue (learning/review cards due + up to NEW_PER_DAY new ones)
-//   POST ?a=cards.review     {id, rating 1..4}
-//   GET  ?a=history          the member's own history     GET ?a=export   everything we store about the member
-const db = require('../lib/db');
-const H = require('../lib/http');
-const P = require('../lib/placement');
-const F = require('../lib/fsrs');
+// Deutsch-Klub member app — core: router, guard, dashboard, onboarding, club, account. No dependencies.
+(function () {
+  "use strict";
+  var DKA = (window.DKA = { routes: [], state: null, club: null });
+  var LEVELS = { A0: "Beginner", A1: "A1", A2: "A2", B1: "B1", B2: "B2", C1: "C1" };
+  var GOALS = { goethe: "Goethe exam", career: "Career", interest: "Personal interest" };
+  var SKILLS = { grammar: "Grammar", vocab: "Vocabulary", reading: "Reading" };
+  var INTERESTS = ["music", "film", "travel", "science", "sport", "food", "tech", "history", "art", "business"];
+  var MINUTES = [5, 10, 15, 20, 30, 45, 60];
 
-const NEW_PER_DAY = 10;
-const GOALS = ['goethe', 'career', 'interest'];
-const INTERESTS = ['music', 'film', 'travel', 'science', 'sport', 'food', 'tech', 'history', 'art', 'business'];
-const MINUTES = [5, 10, 15, 20, 30, 45, 60];
-const str = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
-const bad = (res, msg) => H.send(res, 400, { ok: false, error: msg || 'Invalid request' });
-const lvlOk = (l) => /^(A0|A1|A2|B1|B2|C1)$/.test(l);
-
-async function profileOf(userId) {
-  const r = await db.query(
-    `SELECT goal, interests, minutes_per_day, exam_date, onboarded_at FROM users WHERE id = $1`, [userId]);
-  const u = r[0] || {};
-  return { goal: u.goal || null, interests: u.interests || [], minutes: u.minutes_per_day || null,
-           exam_date: u.exam_date ? String(u.exam_date.toISOString ? u.exam_date.toISOString().slice(0, 10) : u.exam_date).slice(0, 10) : null,
-           onboarded: !!u.onboarded_at };
-}
-async function latestPlacement(userId) {
-  const r = await db.query(
-    `SELECT level, skills, score, total, taken_at FROM placement_results WHERE user_id = $1 ORDER BY taken_at DESC, id DESC LIMIT 1`, [userId]);
-  return r[0] || null;
-}
-async function newDoneToday(userId) {
-  const r = await db.query(
-    `SELECT count(*)::int AS n FROM reviews WHERE user_id = $1 AND was_new AND reviewed_at >= date_trunc('day', now() AT TIME ZONE 'utc') AT TIME ZONE 'utc'`, [userId]);
-  return r[0].n;
-}
-async function cardCounts(userId) {
-  const r = await db.query(
-    `SELECT count(*)::int AS total,
-            count(*) FILTER (WHERE (fsrs->>'state')::int > 0 AND due <= now())::int AS due_learned,
-            count(*) FILTER (WHERE (fsrs->>'state')::int = 0)::int AS fresh
-       FROM cards WHERE user_id = $1`, [userId]);
-  const c = r[0]; const allowance = Math.max(0, NEW_PER_DAY - await newDoneToday(userId));
-  const decks = await db.query(`SELECT deck, count(*)::int AS n FROM cards WHERE user_id = $1 GROUP BY deck ORDER BY deck`, [userId]);
-  return { total: c.total, due: c.due_learned + Math.min(c.fresh, allowance), decks };
-}
-
-module.exports = H.handler(async (req, res) => {
-  if (!db.configured()) return H.send(res, 503, { ok: false, error: 'not_configured' });
-  const url = new URL(req.url || '/', 'http://x');
-  const a = url.searchParams.get('a') || '';
-  const isPost = req.method === 'POST';
-  if (!isPost && req.method !== 'GET') { res.setHeader('Allow', 'GET, POST'); return H.send(res, 405, { ok: false, error: 'Method not allowed' }); }
-  if (isPost && !H.sameOrigin(req)) return H.send(res, 403, { ok: false, error: 'Forbidden' });
-  const body = isPost ? H.readBody(req) : {};
-  const now = new Date();
-
-  // ---- public: placement test
-  if (a === 'test.bank' && !isPost) return H.send(res, 200, { ok: true, questions: P.publicBank() });
-  if (a === 'test.check' && isPost) {
-    const correct = P.check(str(body.id, 20), body.answer);
-    if (correct === null) return bad(res);
-    return H.send(res, 200, { ok: true, correct });
+  // ---------- tiny DOM helper (text only, never innerHTML for data) ----------
+  function h(tag, a, kids) {
+    var e = document.createElement(tag);
+    if (a) Object.keys(a).forEach(function (k) {
+      var v = a[k];
+      if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+      else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v);
+      else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+    });
+    (function add(list) {
+      (list || []).forEach(function (c) {
+        if (c == null || c === false) return;
+        if (Array.isArray(c)) return add(c);
+        e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+      });
+    })(kids);
+    return e;
   }
-  if (a === 'test.submit' && isPost) {
-    const result = P.replay(body.seq, body.answers);     // the server replays the answers with the same engine as the browser
-    if (!result) return bad(res);
-    const { answers: clean, ...pub } = result;
-    const user = await H.currentUser(req);
-    if (user) {
-      await db.query(`INSERT INTO placement_results (user_id, level, skills, score, total, answers) VALUES ($1, $2, $3::jsonb, $4, $5, $6::jsonb)`,
-        [user.id, pub.level, JSON.stringify(pub.skills), pub.score, pub.total, JSON.stringify(clean)]);
+  DKA.h = h;
+  DKA.link = function (href, text, cls) { var inApp = /^\/app(\/|$|\?)/.test(href); return h("a", { href: href, "data-link": inApp ? "" : null, "class": cls || "" , text: text }); };  // only /app/... is routed in the browser; /test, /start etc. are separate pages
+  DKA.json = function (u) { return fetch(u, { credentials: "same-origin" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
+  DKA.route = function (re, fn) { DKA.routes.push({ re: re, fn: fn }); };
+  DKA.levelName = function (l) { return LEVELS[l] || l; };
+  DKA.goalName = function (g) { return GOALS[g] || g; };
+  DKA.skillName = function (s) { return SKILLS[s] || s; };
+
+  DKA.fail = function (root, retry, msg) {
+    root.innerHTML = "";
+    root.appendChild(h("div", { "class": "a-wrap" }, [h("div", { "class": "a-card a-empty" }, [
+      h("p", { text: msg || "Something went wrong while loading this page." }),
+      h("button", { "class": "btn-line", type: "button", text: "Try again", onclick: retry })])]));
+  };
+  DKA.refresh = function () {
+    return DK.api("/api/app?a=state").then(function (res) { if (res.status === 200 && res.j.ok) DKA.state = res.j; return DKA.state; });
+  };
+  DKA.nav = function (href, replace) {
+    history[replace ? "replaceState" : "pushState"](null, "", href); render(); window.scrollTo(0, 0);
+  };
+
+  // ---------- club dates (from content/club.json; Berlin time) ----------
+  DKA.loadClub = function () { return DKA.club ? Promise.resolve(DKA.club) : DKA.json("/content/club.json").then(function (c) { DKA.club = c; return c; }); };
+  function berlinNow() {
+    var o = {}; new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false })
+      .formatToParts(new Date()).forEach(function (x) { o[x.type] = x.value; });
+    return { date: o.year + "-" + o.month + "-" + o.day, hour: parseInt(o.hour, 10) % 24 };
+  }
+  DKA.upcoming = function (club, n) {
+    var out = [], d = new Date(club.first + "T12:00:00Z"), end = new Date(club.last + "T12:00:00Z"), b = berlinNow(), endH = parseInt(club.end, 10);
+    while (d <= end) { var s = d.toISOString().slice(0, 10); if (s > b.date || (s === b.date && b.hour < endH)) out.push(s); d = new Date(d.getTime() + 7 * 864e5); }
+    return out.slice(0, n);
+  };
+  DKA.fmtDate = function (s) { return new Date(s + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }); };
+  DKA.daysUntil = function (s) { return Math.round((new Date(s + "T12:00:00Z") - new Date(berlinNow().date + "T12:00:00Z")) / 864e5); };
+
+  // ---------- router ----------
+  function render() {
+    var path = location.pathname.replace(/\/+$/, "") || "/app";
+    var view = document.getElementById("view");
+    for (var i = 0; i < DKA.routes.length; i++) {
+      var m = DKA.routes[i].re.exec(path);
+      if (m) {
+        var root = h("div", { "class": "a-route" });
+        view.innerHTML = ""; view.appendChild(root);
+        markActive(path);
+        try { Promise.resolve(DKA.routes[i].fn(root, m)).catch(function () { DKA.fail(root, render); }); } catch (e) { DKA.fail(root, render); }
+        return;
+      }
     }
-    return H.send(res, 200, { ok: true, ...pub, saved: !!user });
+    view.innerHTML = "";
+    view.appendChild(h("div", { "class": "a-wrap" }, [h("div", { "class": "a-card a-empty" }, [h("h1", { "class": "a-h1", text: "Page not found" }),
+      h("p", { "class": "a-muted", text: "There is no page at " + path + " (yet)." }), DKA.link("/app", "Back to my dashboard", "btn-solid")])]));
   }
-
-  // ---- everything below needs a logged-in member
-  const user = await H.currentUser(req);
-  if (!user) { H.endSession(res); return H.send(res, 401, { ok: false }); }
-  const uid = user.id;
-
-  if (a === 'state' && !isPost) {
-    const [profile, placement, lessons, cards] = await Promise.all([
-      profileOf(uid), latestPlacement(uid),
-      db.query(`SELECT topic, score, total, done_at FROM lesson_progress WHERE user_id = $1`, [uid]),
-      cardCounts(uid)]);
-    return H.send(res, 200, { ok: true, user: H.publicUser(user), profile, placement, lessons, cards });
-  }
-
-  if (a === 'onboarding' && isPost) {
-    const goal = str(body.goal, 20);
-    if (!GOALS.includes(goal)) return bad(res, 'Please choose a goal.');
-    const interests = (Array.isArray(body.interests) ? body.interests : []).map((x) => str(x, 20)).filter((x) => INTERESTS.includes(x));
-    const uniq = [...new Set(interests)].slice(0, 8);
-    const minutes = Number(body.minutes);
-    if (!MINUTES.includes(minutes)) return bad(res, 'Please choose how many minutes per day.');
-    let exam = null;
-    if (goal === 'goethe' && body.exam_date) {
-      const d = new Date(str(body.exam_date, 10) + 'T00:00:00Z');
-      if (isNaN(d) || d < new Date(now.getTime() - 864e5) || d > new Date(now.getTime() + 800 * 864e5)) return bad(res, 'Please check the exam date.');
-      exam = d.toISOString().slice(0, 10);
+  function markActive(path) {
+    document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : "My app");
+    DK.renderHeaderActive && DK.renderHeaderActive(path);
+    var all = document.querySelectorAll("#top .nav-link, #tabbar .tab[href]");
+    for (var i = 0; i < all.length; i++) {
+      var hr = all[i].getAttribute("href"), on = hr === "/app" ? (path === "/app" || path.indexOf("/app/onboarding") === 0) : (path === hr || path.indexOf(hr + "/") === 0);
+      all[i].classList.toggle("on", on); if (on) all[i].setAttribute("aria-current", "page"); else all[i].removeAttribute("aria-current");
     }
-    await db.query(`UPDATE users SET goal = $2, interests = $3::jsonb, minutes_per_day = $4, exam_date = $5, onboarded_at = COALESCE(onboarded_at, now()) WHERE id = $1`,
-      [uid, goal, JSON.stringify(uniq), minutes, exam]);
-    return H.send(res, 200, { ok: true, profile: await profileOf(uid) });
   }
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("a[data-link]");
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    if (!/^\/app(\/|$|\?)/.test(a.getAttribute("href"))) return;   // not an app route: let the browser load the page
+    e.preventDefault(); DKA.nav(a.getAttribute("href"));
+  });
+  window.addEventListener("popstate", render);
 
-  if (a === 'lesson.done' && isPost) {
-    const topic = str(body.topic, 60), score = Number(body.score), total = Number(body.total);
-    if (!/^[a-z0-9-]+$/.test(topic) || !Number.isInteger(score) || !Number.isInteger(total) || total < 1 || total > 50 || score < 0 || score > total) return bad(res);
-    await db.query(`INSERT INTO lesson_progress (user_id, topic, score, total) VALUES ($1, $2, $3, $4)
-                    ON CONFLICT (user_id, topic) DO UPDATE SET score = GREATEST(lesson_progress.score, EXCLUDED.score), total = EXCLUDED.total, done_at = now()`,
-      [uid, topic, score, total]);
-    return H.send(res, 200, { ok: true });
-  }
-
-  if (a === 'cards.add' && isPost) {
-    const deck = str(body.deck, 60), source = str(body.source || 'deck', 60);
-    if (!/^[a-z0-9-]+$/.test(deck)) return bad(res);
-    const list = (Array.isArray(body.cards) ? body.cards : []).slice(0, 80);
-    if (!list.length) return bad(res, 'No cards.');
-    let added = 0;
-    for (const c of list) {
-      const front = str(c.front, 120), back = str(c.back, 200), example = str(c.example, 240);
-      if (!front || !back) continue;
-      const r = await db.query(`INSERT INTO cards (user_id, deck, front, back, example, source, fsrs, due) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
-                                ON CONFLICT (user_id, deck, front) DO NOTHING RETURNING id`,
-        [uid, deck, front, back, example, source, JSON.stringify(F.newCard(now)), now.toISOString()]);
-      added += r.length;
-    }
-    return H.send(res, 200, { ok: true, added, counts: await cardCounts(uid) });
-  }
-
-  if (a === 'cards.due' && !isPost) {
-    const allowance = Math.max(0, NEW_PER_DAY - await newDoneToday(uid));
-    const learned = await db.query(
-      `SELECT id, deck, front, back, example, fsrs FROM cards WHERE user_id = $1 AND (fsrs->>'state')::int > 0 AND due <= now() ORDER BY due LIMIT 60`, [uid]);
-    const fresh = allowance ? await db.query(
-      `SELECT id, deck, front, back, example, fsrs FROM cards WHERE user_id = $1 AND (fsrs->>'state')::int = 0 ORDER BY id LIMIT $2`, [uid, allowance]) : [];
-    const queue = learned.concat(fresh).map((c) => ({ id: String(c.id), deck: c.deck, front: c.front, back: c.back, example: c.example, isNew: Number(c.fsrs.state) === 0, intervals: F.previews(c.fsrs, now) }));
-    return H.send(res, 200, { ok: true, queue, counts: await cardCounts(uid), new_per_day: NEW_PER_DAY });
-  }
-
-  if (a === 'cards.review' && isPost) {
-    const id = String(body.id || ''), rating = Number(body.rating);
-    if (!/^\d{1,18}$/.test(id) || ![1, 2, 3, 4].includes(rating)) return bad(res);
-    const r = await db.query(`SELECT id, fsrs FROM cards WHERE id = $1 AND user_id = $2`, [id, uid]);
-    if (!r.length) return H.send(res, 404, { ok: false, error: 'Card not found' });
-    const wasNew = Number(r[0].fsrs.state) === 0;
-    const next = F.review(r[0].fsrs, rating, now);
-    await db.query(`UPDATE cards SET fsrs = $3::jsonb, due = $4 WHERE id = $1 AND user_id = $2`, [id, uid, JSON.stringify(next), next.due]);
-    await db.query(`INSERT INTO reviews (user_id, card_id, rating, was_new) VALUES ($1, $2, $3, $4)`, [uid, id, rating, wasNew]);
-    return H.send(res, 200, { ok: true, due: next.due, intervals: F.previews(next, now), counts: await cardCounts(uid) });
-  }
-
-  if (a === 'history' && !isPost) {
-    const [placements, reviews, lessons, cards] = await Promise.all([
-      db.query(`SELECT level, skills, score, total, taken_at FROM placement_results WHERE user_id = $1 ORDER BY taken_at DESC LIMIT 20`, [uid]),
-      db.query(`SELECT count(*)::int AS n, max(reviewed_at) AS last FROM reviews WHERE user_id = $1`, [uid]),
-      db.query(`SELECT topic, score, total, done_at FROM lesson_progress WHERE user_id = $1 ORDER BY done_at DESC`, [uid]),
-      cardCounts(uid)]);
-    return H.send(res, 200, { ok: true, placements, reviews: reviews[0], lessons, cards });
-  }
-
-  if (a === 'export' && !isPost) {
-    const q = (sql) => db.query(sql, [uid]);
-    const out = {
-      account: H.publicUser(user), profile: await profileOf(uid),
-      placement_results: await q(`SELECT level, skills, score, total, taken_at FROM placement_results WHERE user_id = $1 ORDER BY taken_at`),
-      lessons: await q(`SELECT topic, score, total, done_at FROM lesson_progress WHERE user_id = $1`),
-      cards: await q(`SELECT deck, front, back, example, source, due, created_at FROM cards WHERE user_id = $1 ORDER BY id`),
-      reviews: await q(`SELECT card_id, rating, was_new, reviewed_at FROM reviews WHERE user_id = $1 ORDER BY id`),
+  // ---------- boot + route guard ----------
+  DKA.boot = function () {
+    var top = document.getElementById("top"), view = document.getElementById("view");
+    DK.renderHeader(top, "member");
+    DK.api("/api/app?a=state").then(function (res) {
+      if (res.status === 401) { DK.hint.set(false); location.replace("/login?next=" + encodeURIComponent(location.pathname + location.search)); return; }
+      if (res.status === 503) { view.innerHTML = ""; view.appendChild(h("div", { "class": "a-wrap" }, [h("div", { "class": "a-card a-empty" }, [h("p", { text: "Accounts are being set up — please try again in a few minutes." })])])); return; }
+      if (res.status !== 200 || !res.j.ok) throw new Error("state");
+      DKA.state = res.j; DK.hint.set(true);
+      start();
+    }).catch(function () {
+      view.innerHTML = ""; view.appendChild(h("div", { "class": "a-wrap" }, [h("div", { "class": "a-card a-empty" }, [
+        h("p", { text: "No connection. Your progress is safe — check your internet and try again." }),
+        h("button", { "class": "btn-line", type: "button", text: "Try again", onclick: function () { location.reload(); } })])]));
+    });
+  };
+  function start() {
+    var s = DKA.state;
+    DK.mountMenu(document.getElementById("acct"), [
+      { label: "Account", onClick: function () { DKA.nav("/app/account"); } },
+      { label: "Log out", danger: true, onClick: function () { DK.logout(); } }], s.user.full_name);
+    DK.renderTabbar(document.getElementById("tabbar"), location.pathname, function () { DK.logout(); });
+    var go = function () {
+      var p = new URLSearchParams(location.search);
+      render();
+      if (p.get("welcome") === "1") { history.replaceState(null, "", location.pathname); welcome(); }
     };
-    res.setHeader('Content-Disposition', 'attachment; filename="my-deutsch-klub-data.json"');
-    return H.send(res, 200, { ok: true, exported_at: now.toISOString(), ...out });
+    // a test taken as a guest before signing up: attach it to the new account
+    var guest = null; try { guest = JSON.parse(localStorage.getItem("dk_guest_answers") || "null"); } catch (e) {}
+    if (guest && !s.placement) {
+      DK.api("/api/app?a=test.submit", { answers: guest }).then(function () { try { localStorage.removeItem("dk_guest_answers"); } catch (e) {} return DKA.refresh(); }).then(go, go);
+    } else go();
   }
 
-  return H.send(res, 404, { ok: false, error: 'Unknown action' });
-});
+  // ---------- "your ID is ready" (right after sign-up) ----------
+  function welcome() {
+    var s = DKA.state, d = document.createElement("dialog"); d.className = "dk-dialog";
+    var idEl = h("div", { "class": "idbig", translate: "no", text: s.user.id });
+    var copy = h("button", { type: "button", "class": "btn-solid", text: "Copy my ID", onclick: function () {
+      DK.copy(s.user.id.replace(/\s/g, "")).then(function (ok) { copy.textContent = ok ? "Copied ✓  Now save it somewhere safe" : "Select the number above and copy it"; }); } });
+    d.appendChild(h("div", null, [
+      h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Account created"]),
+      h("h2", { text: "Your ID is ready" }),
+      h("p", { "class": "sub", text: "Copy it now and keep it safe. You will type this number to log in on any phone or laptop." }),
+      idEl, copy,
+      h("button", { type: "button", "class": "btn-line", style: "width:100%;margin-top:0.8rem", text: s.placement ? "Continue to my dashboard" : "Continue: take the placement test", onclick: function () { d.close(); if (!s.placement) DKA.nav("/test"); else DKA.nav("/app"); } }),
+      h("p", { "class": "alt", text: "You can always find it again under Account after you log in." })]));
+    document.body.appendChild(d); d.showModal();
+  }
+
+  // ---------- dashboard ----------
+  DKA.route(/^\/app$/, function (root) {
+    var s = DKA.state;
+    if (!s.placement) {                                           // no test yet: ONE call to action
+      root.appendChild(h("div", { "class": "a-wrap a-narrow" }, [h("div", { "class": "a-card a-hero" }, [
+        h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Welcome"]),
+        h("h1", { "class": "a-h1", text: "Hello, " + s.user.full_name }),
+        h("p", { "class": "a-muted", text: "Start with a short placement test. It takes about 5 minutes and shows us where to begin." }),
+        DKA.link("/test", "Take the placement test", "btn-solid")])]));
+      return;
+    }
+    if (!s.profile.onboarded) { DKA.nav("/app/onboarding", true); return; }
+    return DKA.loadClub().then(function () { return DKA.json("/content/lessons.json"); }).then(function (lessons) {
+      var done = {}; s.lessons.forEach(function (l) { done[l.topic] = l; });
+      var nextLesson = lessons.filter(function (l) { return !done[l.id]; })[0];
+      var ev = DKA.upcoming(DKA.club, 1)[0], today = [];
+      if (s.cards.due > 0) today.push({ t: "Review " + s.cards.due + " card" + (s.cards.due === 1 ? "" : "s"), sub: "Spaced repetition: the cards that are due now", href: "/app/cards/review", cta: "Start" });
+      if (nextLesson) today.push({ t: "Lesson: " + nextLesson.title, sub: nextLesson.level + " · about " + nextLesson.minutes + " min · grammar", href: "/app/learn/grammar/" + nextLesson.id, cta: "Open" });
+      if (s.cards.total === 0) today.push({ t: "Add your first card deck", sub: "A1 starter — 30 core words", href: "/app/cards", cta: "Choose" });
+      if (ev && DKA.daysUntil(ev) <= 7) today.push({ t: "Club: " + DKA.fmtDate(ev), sub: DKA.club.start + "–" + DKA.club.end + " · " + DKA.club.venue, href: "/app/club", cta: "Details" });
+      today = today.slice(0, 3);
+      var p = s.placement, pr = s.profile;
+      var facts = [h("span", { "class": "a-badge", text: "Level " + p.level })];
+      if (pr.goal) facts.push(h("span", { "class": "a-badge", text: DKA.goalName(pr.goal) }));
+      if (pr.minutes) facts.push(h("span", { "class": "a-badge", text: pr.minutes + " min / day" }));
+      if (pr.exam_date && DKA.daysUntil(pr.exam_date) >= 0) facts.push(h("span", { "class": "a-badge", text: "Exam in " + DKA.daysUntil(pr.exam_date) + " days" }));
+      root.appendChild(h("div", { "class": "a-wrap" }, [
+        h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Dashboard"]),
+        h("h1", { "class": "a-h1", text: "Welcome, " + s.user.full_name }),
+        h("div", { "class": "a-badges" }, facts),
+        h("p", { "class": "a-muted a-small", text: "Placement result: " + Object.keys(p.skills).map(function (k) { return DKA.skillName(k) + " " + p.skills[k]; }).join(" · ") + " (indicative, not an official certificate)." }),
+        h("h2", { "class": "a-h2", text: "Today" }),
+        today.length ? h("div", { "class": "a-today" }, today.map(function (it) {
+          return h("a", { "class": "a-item", href: it.href, "data-link": "" }, [h("div", null, [h("strong", { text: it.t }), h("span", { text: it.sub })]), h("em", { text: it.cta + " →" })]);
+        })) : h("div", { "class": "a-card" }, [h("p", { "class": "a-muted", text: "Nothing is due. You have finished every available lesson; new ones are on the way. Come back tomorrow for your cards." })]),
+        ev ? h("div", { "class": "a-card a-next" }, [h("p", { "class": "eyebrow", text: "Next club session" }), h("p", { "class": "a-big", text: DKA.fmtDate(ev) }),
+          h("p", { "class": "a-muted", text: DKA.club.start + "–" + DKA.club.end + " · " + DKA.club.venue }), DKA.link("/app/club", "Club details", "btn-line")]) : null]));
+    });
+  });
+
+  // ---------- onboarding ----------
+  DKA.route(/^\/app\/onboarding$/, function (root) {
+    var s = DKA.state, pr = s.profile, q = new URLSearchParams(location.search);
+    var stored = ""; try { stored = localStorage.getItem("dk_goal") || ""; } catch (e) {}
+    var goal = pr.goal || (GOALS[q.get("goal")] ? q.get("goal") : (GOALS[stored] ? stored : ""));
+    var picked = (pr.interests || []).slice(), minutes = pr.minutes || 0;
+    var err = h("p", { "class": "err", role: "alert" });
+    var examBox = h("div", { "class": "a-field" });
+    function goalCards() {
+      return Object.keys(GOALS).map(function (g) {
+        var b = h("button", { type: "button", "class": "a-choice" + (goal === g ? " on" : ""), "aria-pressed": String(goal === g), onclick: function () { goal = g; paint(); } }, [
+          h("strong", { text: GOALS[g] }), h("span", { text: g === "goethe" ? "Prepare for a Goethe-Zertifikat exam" : g === "career" ? "German for study, work and life in Germany" : "Because you enjoy the language" })]);
+        return b;
+      });
+    }
+    var goalHost = h("div", { "class": "a-choices" }), intHost = h("div", { "class": "a-chips" }), minHost = h("div", { "class": "a-chips" });
+    var exam = h("input", { type: "date", id: "exam", value: pr.exam_date || "", min: new Date().toISOString().slice(0, 10) });
+    function paint() {
+      goalHost.innerHTML = ""; goalCards().forEach(function (c) { goalHost.appendChild(c); });
+      intHost.innerHTML = ""; INTERESTS.forEach(function (i) { intHost.appendChild(h("button", { type: "button", "class": "a-chip" + (picked.indexOf(i) > -1 ? " on" : ""), "aria-pressed": String(picked.indexOf(i) > -1), text: i,
+        onclick: function () { var k = picked.indexOf(i); if (k > -1) picked.splice(k, 1); else if (picked.length < 8) picked.push(i); paint(); } })); });
+      minHost.innerHTML = ""; MINUTES.forEach(function (m) { minHost.appendChild(h("button", { type: "button", "class": "a-chip" + (minutes === m ? " on" : ""), "aria-pressed": String(minutes === m), text: m + " min", onclick: function () { minutes = m; paint(); } })); });
+      examBox.hidden = goal !== "goethe";
+    }
+    examBox.appendChild(h("label", { "for": "exam", text: "Exam date (optional)" })); examBox.appendChild(exam);
+    var save = h("button", { type: "button", "class": "btn-solid", text: pr.onboarded ? "Save" : "Continue to my dashboard", onclick: function () {
+      err.textContent = "";
+      if (!goal) { err.textContent = "Please choose a goal."; return; }
+      if (!minutes) { err.textContent = "Please choose how many minutes per day."; return; }
+      save.disabled = true;
+      DK.api("/api/app?a=onboarding", { goal: goal, interests: picked, minutes: minutes, exam_date: goal === "goethe" ? exam.value : "" }).then(function (res) {
+        if (res.status === 200 && res.j.ok) { try { localStorage.setItem("dk_goal", goal); } catch (e) {} return DKA.refresh().then(function () { DKA.nav("/app"); }); }
+        err.textContent = res.j.error || "Something went wrong, please try again."; save.disabled = false;
+      }).catch(function () { err.textContent = "No connection — please try again."; save.disabled = false; });
+    } });
+    root.appendChild(h("div", { "class": "a-wrap a-narrow" }, [
+      h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), pr.onboarded ? "Your plan" : "Last step"]),
+      h("h1", { "class": "a-h1", text: pr.onboarded ? "Change your plan" : "Tell us what you need" }),
+      s.placement ? h("p", { "class": "a-muted", text: "Your placement level: " + s.placement.level + ". Three quick questions so that “Today” fits your life." }) : null,
+      h("h2", { "class": "a-h3", text: "1 · Your goal" }), goalHost, examBox,
+      h("h2", { "class": "a-h3", text: "2 · Your interests (up to 8)" }), intHost,
+      h("h2", { "class": "a-h3", text: "3 · Minutes per day" }), minHost, err, save]));
+    paint();
+  });
+
+  // ---------- club ----------
+  DKA.route(/^\/app\/club$/, function (root) {
+    return DKA.loadClub().then(function (c) {
+      var list = DKA.upcoming(c, 9);
+      root.appendChild(h("div", { "class": "a-wrap" }, [
+        h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Club"]),
+        h("h1", { "class": "a-h1", text: "Every Sunday, " + c.start + "–" + c.end }),
+        h("p", { "class": "a-muted", text: c.venue + " · from " + DKA.fmtDate(c.first) + " until " + DKA.fmtDate(c.last) + "." }),
+        h("h2", { "class": "a-h2", text: "Upcoming sessions" }),
+        list.length ? h("ul", { "class": "a-dates" }, list.map(function (d, i) { return h("li", { "class": i === 0 ? "first" : "" }, [h("strong", { text: DKA.fmtDate(d) }), h("span", { text: c.start + "–" + c.end })]); }))
+          : h("div", { "class": "a-card" }, [h("p", { "class": "a-muted", text: "This season has ended. The next dates will be announced here and in the channels below." })]),
+        h("h2", { "class": "a-h2", text: "Stay informed" }),
+        h("div", { "class": "a-grid2" }, [
+          h("a", { "class": "a-card a-qr", href: c.telegram, target: "_blank", rel: "noopener" }, [h("img", { src: "/assets/qr-telegram.svg", alt: "QR code for the Telegram channel", width: "132", height: "132" }), h("div", null, [h("strong", { text: "Telegram" }), h("span", { text: "Main information about the club" })])]),
+          h("a", { "class": "a-card a-qr", href: c.whatsapp, target: "_blank", rel: "noopener" }, [h("img", { src: "/assets/qr-whatsapp.svg", alt: "QR code for the WhatsApp channel", width: "132", height: "132" }), h("div", null, [h("strong", { text: "WhatsApp" }), h("span", { text: "Main information about the club" })])])]),
+        h("p", { "class": "a-muted a-small" }, ["Questions? ", h("a", { href: "mailto:" + c.contact, text: c.contact })])]));
+    });
+  });
+
+  // ---------- account ----------
+  DKA.route(/^\/app\/account$/, function (root) {
+    var s = DKA.state;
+    return DK.api("/api/app?a=history").then(function (res) {
+      if (res.status !== 200 || !res.j.ok) throw new Error("history");
+      var hist = res.j, u = s.user, msg = h("p", { "class": "a-muted a-small", role: "status" });
+      function setting(label, key, desc) {
+        var cb = h("input", { type: "checkbox", id: "s_" + key }); cb.checked = !!u[key];
+        cb.addEventListener("change", function () { var b = {}; b[key] = cb.checked; DK.api("/api/settings", b).then(function (r) { if (r.status === 200) { u[key] = cb.checked; DK.toast("Saved"); } else { cb.checked = !cb.checked; DK.toast("Could not save"); } }); });
+        return h("label", { "class": "a-toggle", "for": "s_" + key }, [cb, h("span", null, [h("strong", { text: label }), h("em", { text: desc })])]);
+      }
+      var idCopy = h("button", { type: "button", "class": "copy-btn", "aria-label": "Copy my ID", text: "Copy", onclick: function () { DK.copy(u.id.replace(/\s/g, "")).then(function (ok) { DK.toast(ok ? "ID copied" : "Select the number and copy it"); }); } });
+      var del = h("div", { "class": "a-danger" });
+      var confirmBox = h("input", { type: "text", placeholder: "Type DELETE", autocomplete: "off", "aria-label": "Type DELETE to confirm" });
+      var delBtn = h("button", { type: "button", "class": "btn-line danger", text: "Delete my account and all my data", disabled: true, onclick: function () {
+        DK.api("/api/settings", { "delete": true }).then(function (r) { if (r.status === 200) { DK.hint.set(false); location.href = "/"; } else DK.toast("Could not delete — try again"); }); } });
+      confirmBox.addEventListener("input", function () { delBtn.disabled = confirmBox.value.trim() !== "DELETE"; });
+      del.appendChild(h("p", { "class": "a-muted a-small", text: "This removes your account, test results, lesson progress, cards and review history for good. It cannot be undone." }));
+      del.appendChild(confirmBox); del.appendChild(delBtn);
+      var pr = s.profile;
+      root.appendChild(h("div", { "class": "a-wrap a-narrow" }, [
+        h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Account"]),
+        h("h1", { "class": "a-h1", text: u.full_name }),
+        h("div", { "class": "a-card" }, [h("p", { "class": "a-label", text: "Your ID — your login on any device" }), h("div", { "class": "a-id" }, [h("span", { translate: "no", text: u.id }), idCopy])]),
+        h("h2", { "class": "a-h2", text: "My plan" }),
+        h("div", { "class": "a-card" }, [
+          h("p", null, [h("strong", { text: "Goal: " }), pr.goal ? DKA.goalName(pr.goal) : "not set"]),
+          h("p", null, [h("strong", { text: "Interests: " }), (pr.interests || []).length ? pr.interests.join(", ") : "none chosen"]),
+          h("p", null, [h("strong", { text: "Minutes per day: " }), pr.minutes ? String(pr.minutes) : "not set"]),
+          pr.exam_date ? h("p", null, [h("strong", { text: "Exam date: " }), pr.exam_date]) : null,
+          DKA.link("/app/onboarding", "Change my plan", "btn-line")]),
+        h("h2", { "class": "a-h2", text: "Settings" }),
+        h("div", { "class": "a-card" }, [setting("Club notifications", "want_notify", "Events and important information about the club"), setting("Placement-test reminders", "want_test", "Remind me to retake the placement test")]),
+        h("h2", { "class": "a-h2", text: "My data" }),
+        h("div", { "class": "a-card" }, [
+          h("p", { "class": "a-muted a-small", text: "Everything we store about you is listed here." }),
+          h("ul", { "class": "a-list" }, [
+            h("li", { text: "Placement tests taken: " + hist.placements.length + (hist.placements[0] ? " (latest: level " + hist.placements[0].level + ", " + new Date(hist.placements[0].taken_at).toLocaleDateString("en-GB") + ")" : "") }),
+            h("li", { text: "Lessons finished: " + hist.lessons.length }),
+            h("li", { text: "Cards: " + hist.cards.total }),
+            h("li", { text: "Card reviews: " + hist.reviews.n })]),
+          h("button", { type: "button", "class": "btn-line", text: "Download my data (JSON)", onclick: function () {
+            fetch("/api/app?a=export", { credentials: "same-origin" }).then(function (r) { return r.blob(); }).then(function (b) { var a = h("a", { href: URL.createObjectURL(b), download: "my-deutsch-klub-data.json" }); document.body.appendChild(a); a.click(); a.remove(); }); } })]),
+        h("h2", { "class": "a-h2", text: "Delete" }), h("div", { "class": "a-card" }, [del]), msg]));
+    });
+  });
+})();
