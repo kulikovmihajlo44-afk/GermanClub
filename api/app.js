@@ -1,105 +1,185 @@
-// Tests for the member app API (placement scoring, onboarding, lessons, FSRS cards, isolation, erasure) on real Postgres (PGlite).
-// Run:  NODE_PATH=/opt/data/cache/scratch/npmtest/node_modules node tests/app.test.js
-const assert = require('assert');
-const path = require('path');
-const { PGlite } = require('@electric-sql/pglite');
-const root = path.join(__dirname, '..');
-const db = require(root + '/lib/db');
-const P = require(root + '/lib/placement');
-let passed = 0; const ok = (name) => { passed++; console.log('  ✓', name); };
-const pg = new PGlite();
-db.setClient({ query: async (t, p) => (await pg.query(t, p)).rows });
-process.env.DATABASE_URL = 'test';
-const apply = require(root + '/api/apply.js'), settings = require(root + '/api/settings.js'), app = require(root + '/api/app.js');
+// One function for all member data (keeps us far below the 12-function limit of the free Vercel plan).
+//   GET  ?a=state            dashboard data (profile, latest placement, lesson progress, card counts)
+//   GET  ?a=test.bank        the adaptive placement test's question bank with difficulty points, WITHOUT the answer key (public)
+//   POST ?a=test.check       {id, answer:index}  -> {correct}   one answer at a time (public)
+//   POST ?a=test.submit      {seq:[20 ids in the order asked], answers:{id:index|-1}}  -> {level, points, border, skills, score, total, saved}   (public; saved only when logged in)
+//   POST ?a=onboarding       {goal, interests[], minutes, exam_date?}
+//   POST ?a=lesson.done      {topic, score, total}
+//   POST ?a=cards.add        {deck, source?, cards:[{front, back, example?}]}
+//   GET  ?a=cards.due        today's queue (learning/review cards due + up to NEW_PER_DAY new ones)
+//   POST ?a=cards.review     {id, rating 1..4}
+//   GET  ?a=history          the member's own history     GET ?a=export   everything we store about the member
+const db = require('../lib/db');
+const H = require('../lib/http');
+const P = require('../lib/placement');
+const F = require('../lib/fsrs');
 
-function call(fn, { method = 'POST', body = {}, cookie = '', url = '/', origin = 'https://site.test' } = {}) {
-  return new Promise((resolve) => {
-    const out = { code: 0, headers: {}, body: null };
-    const res = { setHeader(k, v) { out.headers[k.toLowerCase()] = v; }, status(c) { out.code = c; return this; }, json(j) { out.body = j; resolve(out); return this; } };
-    const req = { method, url, body, headers: { host: 'site.test', origin, cookie, 'x-forwarded-for': '9.9.9.9' }, socket: {} };
-    if (!origin) delete req.headers.origin;
-    Promise.resolve(fn(req, res)).catch((e) => { out.err = e; resolve(out); });
-  });
+const NEW_PER_DAY = 10;
+const GOALS = ['goethe', 'career', 'interest'];
+const INTERESTS = ['music', 'film', 'travel', 'science', 'sport', 'food', 'tech', 'history', 'art', 'business'];
+const MINUTES = [5, 10, 15, 20, 30, 45, 60];
+const str = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
+const bad = (res, msg) => H.send(res, 400, { ok: false, error: msg || 'Invalid request' });
+const lvlOk = (l) => /^(A0|A1|A2|B1|B2|C1)$/.test(l);
+
+async function profileOf(userId) {
+  const r = await db.query(
+    `SELECT goal, interests, minutes_per_day, exam_date, onboarded_at FROM users WHERE id = $1`, [userId]);
+  const u = r[0] || {};
+  return { goal: u.goal || null, interests: u.interests || [], minutes: u.minutes_per_day || null,
+           exam_date: u.exam_date ? String(u.exam_date.toISOString ? u.exam_date.toISOString().slice(0, 10) : u.exam_date).slice(0, 10) : null,
+           onboarded: !!u.onboarded_at };
 }
-const A = (a, o = {}) => call(app, { method: o.body !== undefined ? 'POST' : 'GET', url: '/api/app?a=' + a, ...o });
-const cookieOf = (r) => (r.headers['set-cookie'] || '').split(';')[0];
-async function signup(name, email) { const r = await call(apply, { body: { fullname: name, email, level: 'A2' } }); assert.strictEqual(r.code, 200, JSON.stringify(r.body)); return cookieOf(r); }
-const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i) ? i.a : (i.a + 1) % i.options.length]));
+async function latestPlacement(userId) {
+  const r = await db.query(
+    `SELECT level, skills, score, total, taken_at FROM placement_results WHERE user_id = $1 ORDER BY taken_at DESC, id DESC LIMIT 1`, [userId]);
+  return r[0] || null;
+}
+async function newDoneToday(userId) {
+  const r = await db.query(
+    `SELECT count(*)::int AS n FROM reviews WHERE user_id = $1 AND was_new AND reviewed_at >= date_trunc('day', now() AT TIME ZONE 'utc') AT TIME ZONE 'utc'`, [userId]);
+  return r[0].n;
+}
+async function cardCounts(userId) {
+  const r = await db.query(
+    `SELECT count(*)::int AS total,
+            count(*) FILTER (WHERE (fsrs->>'state')::int > 0 AND due <= now())::int AS due_learned,
+            count(*) FILTER (WHERE (fsrs->>'state')::int = 0)::int AS fresh
+       FROM cards WHERE user_id = $1`, [userId]);
+  const c = r[0]; const allowance = Math.max(0, NEW_PER_DAY - await newDoneToday(userId));
+  const decks = await db.query(`SELECT deck, count(*)::int AS n FROM cards WHERE user_id = $1 GROUP BY deck ORDER BY deck`, [userId]);
+  return { total: c.total, due: c.due_learned + Math.min(c.fresh, allowance), decks };
+}
 
-(async () => {
-  console.log('Placement test');
-  let r = await A('test.bank'); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.questions.length, 75);
-  assert.ok(r.body.questions.every((q) => q.d >= 0 && q.d <= 100 && !('a' in q) && !('ans' in q))); ok('test.bank returns 75 questions with difficulty points and no answer key');
-  assert.strictEqual(P.ITEMS.length, 75); assert.strictEqual(P.TOTAL, 20);
-  assert.ok(P.LEVELS.every((L) => P.ITEMS.filter((i) => i.level === L).length === 15) && new Set(P.ITEMS.map((i) => i.id)).size === 75); ok('bank: 75 unique questions, 15 per level, test length 20');
-  assert.ok(P.ITEMS.every((i) => i.a >= 0 && i.a < i.options.length && new Set(i.options).size === 4)); ok('every item has a valid key and 4 distinct options');
-  const E = require(root + '/assets/test.js'), pub = r.body.questions;
-  const play = (knows) => { const hist = [], seq = [], answers = {}; for (let n = 0; n < 20; n++) { const q = E.pickNext(pub, hist), it = P.ITEMS.find((x) => x.id === q.id), good = knows(it); hist.push({ item: q, correct: good }); seq.push(q.id); answers[q.id] = good ? it.a : (it.a + 1) % 4; } return { seq, answers, hist }; };
-  const strong = play(() => true), weak = play(() => false), mid = play((it) => it.d <= 55);
-  assert.ok(new Set(strong.seq).size === 20 && new Set(weak.seq).size === 20); ok('adaptive test asks exactly 20 different questions');
-  const avg = (t) => t.hist.slice(-8).reduce((x, h) => x + h.item.d, 0) / 8; assert.ok(avg(strong) >= 70 && avg(weak) <= 30 && avg(mid) > avg(weak) && avg(mid) < avg(strong)); ok('correct answers lead to harder questions, wrong answers to easier ones');
-  let s = P.replay(strong.seq, strong.answers); assert.ok(['B2', 'C1'].includes(s.level) && s.score === 20 && s.total === 20); ok('all right = B2/C1');
-  s = P.replay(weak.seq, weak.answers); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.score, 0); ok('all wrong = A0');
-  s = P.replay(mid.seq, mid.answers); assert.ok(['A2', 'B1'].includes(s.level)); ok('knows up to difficulty 55 = A2/B1');
-  s = P.replay(mid.seq, mid.answers); assert.deepStrictEqual(Object.keys(s.skills).sort(), ['grammar', 'reading', 'vocab']); assert.ok(s.points >= 0 && s.points <= 100); ok('result has skills and 0-100 points');
-  const idk = Object.fromEntries(strong.seq.map((id) => [id, -1])); s = P.replay(strong.seq, idk); assert.strictEqual(s.level, 'A0'); ok('"I don\'t know" (-1) counts as wrong');
-  assert.strictEqual(P.replay(strong.seq.slice(0, 19), strong.answers), null); assert.strictEqual(P.replay([...strong.seq.slice(0, 19), strong.seq[0]], strong.answers), null); assert.strictEqual(P.replay(['evil', ...strong.seq.slice(1)], strong.answers), null); ok('incomplete, duplicated or unknown question lists are rejected');
-  s = P.replay(strong.seq, { [strong.seq[0]]: '0', [strong.seq[1]]: 0.5, [strong.seq[2]]: null }); assert.ok(s.score === 0 && s.level === 'A0'); ok('malformed answers do not crash or score');
-  assert.strictEqual(P.check('A1-01', P.ITEMS[0].a), true); assert.strictEqual(P.check('A1-01', (P.ITEMS[0].a + 1) % 4), false); assert.strictEqual(P.check('nope', 0), null); assert.strictEqual(P.check('A1-01', '0'), null); ok('check: right / wrong / unknown id / malformed');
+module.exports = H.handler(async (req, res) => {
+  if (!db.configured()) return H.send(res, 503, { ok: false, error: 'not_configured' });
+  const url = new URL(req.url || '/', 'http://x');
+  const a = url.searchParams.get('a') || '';
+  const isPost = req.method === 'POST';
+  if (!isPost && req.method !== 'GET') { res.setHeader('Allow', 'GET, POST'); return H.send(res, 405, { ok: false, error: 'Method not allowed' }); }
+  if (isPost && !H.sameOrigin(req)) return H.send(res, 403, { ok: false, error: 'Forbidden' });
+  const body = isPost ? H.readBody(req) : {};
+  const now = new Date();
 
-  console.log('Access control');
-  assert.strictEqual((await A('state')).code, 401); ok('state requires login (401)');
-  const ca = await signup('Anna Müller', 'anna@example.com'), cb = await signup('Ben Meyer', 'ben@example.com');
-  assert.strictEqual((await A('state', { cookie: ca })).code, 200); ok('state works with the session');
-  assert.strictEqual((await A('cards.add', { cookie: ca, body: { deck: 'x', cards: [{ front: 'a', back: 'b' }] }, origin: 'https://evil.example' })).code, 403); ok('cross-origin POST refused (403)');
-  assert.strictEqual((await A('nope', { cookie: ca })).code, 404); ok('unknown action = 404');
+  // ---- public: placement test
+  if (a === 'test.bank' && !isPost) return H.send(res, 200, { ok: true, questions: P.publicBank() });
+  if (a === 'test.check' && isPost) {
+    const correct = P.check(str(body.id, 20), body.answer);
+    if (correct === null) return bad(res);
+    return H.send(res, 200, { ok: true, correct });
+  }
+  if (a === 'test.submit' && isPost) {
+    const result = P.replay(body.seq, body.answers);     // the server replays the answers with the same engine as the browser
+    if (!result) return bad(res);
+    const { answers: clean, ...pub } = result;
+    const user = await H.currentUser(req);
+    if (user) {
+      await db.query(`INSERT INTO placement_results (user_id, level, skills, score, total, answers) VALUES ($1, $2, $3::jsonb, $4, $5, $6::jsonb)`,
+        [user.id, pub.level, JSON.stringify(pub.skills), pub.score, pub.total, JSON.stringify(clean)]);
+    }
+    return H.send(res, 200, { ok: true, ...pub, saved: !!user });
+  }
 
-  console.log('Test results');
-  r = await A('test.submit', { body: { seq: strong.seq, answers: strong.answers } }); assert.strictEqual(r.code, 200); assert.ok(['B2', 'C1'].includes(r.body.level)); assert.strictEqual(r.body.saved, false); assert.strictEqual(r.body.total, 20); assert.ok(!('answers' in r.body)); ok('guest gets a result, nothing is saved');
-  r = await A('test.submit', { cookie: ca, body: { seq: strong.seq.slice(0, 10), answers: strong.answers } }); assert.strictEqual(r.code, 400); r = await A('state', { cookie: ca }); assert.strictEqual(r.body.placement, null); ok('an incomplete test is refused and not saved');
-  r = await A('test.submit', { cookie: ca, body: { seq: strong.seq, answers: strong.answers } }); assert.strictEqual(r.body.saved, true);
-  r = await A('state', { cookie: ca }); assert.ok(['B2', 'C1'].includes(r.body.placement.level)); assert.strictEqual(r.body.profile.onboarded, false); assert.strictEqual(r.body.cards.total, 0); ok('member result is saved and shows in state; not onboarded yet');
-  assert.strictEqual((await A('test.submit', { body: {} })).code, 400); ok('missing answers = 400');
+  // ---- everything below needs a logged-in member
+  const user = await H.currentUser(req);
+  if (!user) { H.endSession(res); return H.send(res, 401, { ok: false }); }
+  const uid = user.id;
 
-  console.log('Onboarding');
-  assert.strictEqual((await A('onboarding', { cookie: ca, body: { goal: 'hack', minutes: 10 } })).code, 400);
-  assert.strictEqual((await A('onboarding', { cookie: ca, body: { goal: 'goethe', minutes: 7 } })).code, 400); ok('invalid goal / minutes refused');
-  r = await A('onboarding', { cookie: ca, body: { goal: 'goethe', interests: ['music', 'music', 'film', '<script>'], minutes: 20, exam_date: '2027-03-01' } });
-  assert.strictEqual(r.code, 200); assert.deepStrictEqual(r.body.profile.interests, ['music', 'film']); assert.strictEqual(r.body.profile.exam_date, '2027-03-01'); assert.strictEqual(r.body.profile.onboarded, true); ok('saved; unknown interests dropped, duplicates merged, exam date kept for Goethe');
-  assert.strictEqual((await A('onboarding', { cookie: ca, body: { goal: 'goethe', minutes: 10, exam_date: '2019-01-01' } })).code, 400); ok('past exam date refused');
-  r = await A('onboarding', { cookie: cb, body: { goal: 'interest', minutes: 10, exam_date: '2027-03-01' } }); assert.strictEqual(r.body.profile.exam_date, null); ok('exam date ignored for other goals');
+  if (a === 'state' && !isPost) {
+    const [profile, placement, lessons, cards] = await Promise.all([
+      profileOf(uid), latestPlacement(uid),
+      db.query(`SELECT topic, score, total, done_at FROM lesson_progress WHERE user_id = $1`, [uid]),
+      cardCounts(uid)]);
+    return H.send(res, 200, { ok: true, user: H.publicUser(user), profile, placement, lessons, cards });
+  }
 
-  console.log('Lessons');
-  assert.strictEqual((await A('lesson.done', { cookie: ca, body: { topic: 'verb-second', score: 5, total: 6 } })).code, 200);
-  await A('lesson.done', { cookie: ca, body: { topic: 'verb-second', score: 3, total: 6 } });
-  r = await A('state', { cookie: ca }); assert.strictEqual(r.body.lessons.length, 1); assert.strictEqual(r.body.lessons[0].score, 5); ok('lesson progress keeps the best score');
-  assert.strictEqual((await A('lesson.done', { cookie: ca, body: { topic: '../x', score: 1, total: 1 } })).code, 400);
-  assert.strictEqual((await A('lesson.done', { cookie: ca, body: { topic: 'ok', score: 9, total: 6 } })).code, 400); ok('bad topic / impossible score refused');
+  if (a === 'onboarding' && isPost) {
+    const goal = str(body.goal, 20);
+    if (!GOALS.includes(goal)) return bad(res, 'Please choose a goal.');
+    const interests = (Array.isArray(body.interests) ? body.interests : []).map((x) => str(x, 20)).filter((x) => INTERESTS.includes(x));
+    const uniq = [...new Set(interests)].slice(0, 8);
+    const minutes = Number(body.minutes);
+    if (!MINUTES.includes(minutes)) return bad(res, 'Please choose how many minutes per day.');
+    let exam = null;
+    if (goal === 'goethe' && body.exam_date) {
+      const d = new Date(str(body.exam_date, 10) + 'T00:00:00Z');
+      if (isNaN(d) || d < new Date(now.getTime() - 864e5) || d > new Date(now.getTime() + 800 * 864e5)) return bad(res, 'Please check the exam date.');
+      exam = d.toISOString().slice(0, 10);
+    }
+    await db.query(`UPDATE users SET goal = $2, interests = $3::jsonb, minutes_per_day = $4, exam_date = $5, onboarded_at = COALESCE(onboarded_at, now()) WHERE id = $1`,
+      [uid, goal, JSON.stringify(uniq), minutes, exam]);
+    return H.send(res, 200, { ok: true, profile: await profileOf(uid) });
+  }
 
-  console.log('Cards (FSRS)');
-  const deck = Array.from({ length: 15 }, (_, i) => ({ front: 'Wort ' + i, back: 'word ' + i, example: 'Beispiel ' + i }));
-  r = await A('cards.add', { cookie: ca, body: { deck: 'a1-starter', source: 'deck', cards: deck } }); assert.strictEqual(r.body.added, 15);
-  r = await A('cards.add', { cookie: ca, body: { deck: 'a1-starter', cards: deck } }); assert.strictEqual(r.body.added, 0); ok('adding the same deck twice does not duplicate cards');
-  r = await A('cards.due', { cookie: ca }); assert.strictEqual(r.body.queue.length, 10); assert.ok(r.body.queue.every((c) => c.isNew)); assert.deepStrictEqual(Object.keys(r.body.queue[0].intervals), ['1', '2', '3', '4']);
-  assert.strictEqual(r.body.counts.due, 10); ok('15 new cards -> 10 offered today (daily new-card limit), with the 4 button previews');
-  const c1 = r.body.queue[0];
-  r = await A('cards.review', { cookie: ca, body: { id: c1.id, rating: 1 } }); assert.strictEqual(r.code, 200);
-  r = await A('cards.due', { cookie: ca }); assert.ok(!r.body.queue.some((c) => c.id === c1.id && c.isNew)); ok('"Again" moves the card out of the new pile and schedules it ~1 min later');
-  for (const c of r.body.queue.filter((c) => c.id !== c1.id).slice(0, 8)) await A('cards.review', { cookie: ca, body: { id: c.id, rating: 3 } });
-  r = await A('cards.due', { cookie: ca }); assert.ok(r.body.queue.filter((c) => c.isNew).length <= 1); ok('after 9 new cards reviewed, at most 1 new card left today');
-  const last = r.body.queue.find((c) => c.isNew); if (last) await A('cards.review', { cookie: ca, body: { id: last.id, rating: 4 } });
-  r = await A('cards.due', { cookie: ca }); assert.strictEqual(r.body.queue.filter((c) => c.isNew).length, 0); assert.strictEqual(r.body.new_per_day, 10); ok('10 new cards done = no more new cards today, even though 5 are left in the deck');
-  assert.strictEqual((await A('cards.review', { cookie: ca, body: { id: c1.id, rating: 5 } })).code, 400); ok('invalid rating refused');
-  assert.strictEqual((await A('cards.review', { cookie: cb, body: { id: c1.id, rating: 3 } })).code, 404); ok('another member cannot review my card (404)');
-  assert.strictEqual((await A('cards.due', { cookie: cb })).body.queue.length, 0); ok('other member sees none of my cards');
+  if (a === 'lesson.done' && isPost) {
+    const topic = str(body.topic, 60), score = Number(body.score), total = Number(body.total);
+    if (!/^[a-z0-9-]+$/.test(topic) || !Number.isInteger(score) || !Number.isInteger(total) || total < 1 || total > 50 || score < 0 || score > total) return bad(res);
+    await db.query(`INSERT INTO lesson_progress (user_id, topic, score, total) VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (user_id, topic) DO UPDATE SET score = GREATEST(lesson_progress.score, EXCLUDED.score), total = EXCLUDED.total, done_at = now()`,
+      [uid, topic, score, total]);
+    return H.send(res, 200, { ok: true });
+  }
 
-  console.log('Own data & erasure');
-  r = await A('history', { cookie: ca }); assert.strictEqual(r.body.placements.length, 2 - 1 + 0 || 1); assert.strictEqual(r.body.reviews.n, 10); assert.strictEqual(r.body.cards.total, 15); ok('history shows own results and 10 reviews');
-  r = await A('export', { cookie: ca }); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.cards.length, 15); assert.strictEqual(r.body.reviews.length, 10); assert.ok(r.headers['content-disposition'].includes('attachment')); assert.ok(!JSON.stringify(r.body).includes('anna@example.com') || r.body.account); ok('export returns everything stored about me');
-  r = await call(settings, { cookie: ca, body: { delete: true } }); assert.strictEqual(r.body.deleted, true);
-  for (const t of ['placement_results', 'lesson_progress', 'cards', 'reviews']) assert.strictEqual((await pg.query(`SELECT count(*)::int n FROM ${t} WHERE user_id = (SELECT 'none')`)).rows[0].n, 0);
-  const left = (await pg.query(`SELECT (SELECT count(*) FROM cards)::int c, (SELECT count(*) FROM reviews)::int r, (SELECT count(*) FROM lesson_progress)::int l, (SELECT count(*) FROM placement_results)::int p`)).rows[0];
-  assert.deepStrictEqual(left, { c: 0, r: 0, l: 0, p: 0 }); ok('deleting the account erases cards, reviews, lessons and test results');
-  console.log('\nApp API: ' + passed + ' checks passed');
-  process.exit(0);
-})().catch((e) => { console.error('FAIL', e); process.exit(1); });
+  if (a === 'cards.add' && isPost) {
+    const deck = str(body.deck, 60), source = str(body.source || 'deck', 60);
+    if (!/^[a-z0-9-]+$/.test(deck)) return bad(res);
+    const list = (Array.isArray(body.cards) ? body.cards : []).slice(0, 80);
+    if (!list.length) return bad(res, 'No cards.');
+    let added = 0;
+    for (const c of list) {
+      const front = str(c.front, 120), back = str(c.back, 200), example = str(c.example, 240);
+      if (!front || !back) continue;
+      const r = await db.query(`INSERT INTO cards (user_id, deck, front, back, example, source, fsrs, due) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+                                ON CONFLICT (user_id, deck, front) DO NOTHING RETURNING id`,
+        [uid, deck, front, back, example, source, JSON.stringify(F.newCard(now)), now.toISOString()]);
+      added += r.length;
+    }
+    return H.send(res, 200, { ok: true, added, counts: await cardCounts(uid) });
+  }
+
+  if (a === 'cards.due' && !isPost) {
+    const allowance = Math.max(0, NEW_PER_DAY - await newDoneToday(uid));
+    const learned = await db.query(
+      `SELECT id, deck, front, back, example, fsrs FROM cards WHERE user_id = $1 AND (fsrs->>'state')::int > 0 AND due <= now() ORDER BY due LIMIT 60`, [uid]);
+    const fresh = allowance ? await db.query(
+      `SELECT id, deck, front, back, example, fsrs FROM cards WHERE user_id = $1 AND (fsrs->>'state')::int = 0 ORDER BY id LIMIT $2`, [uid, allowance]) : [];
+    const queue = learned.concat(fresh).map((c) => ({ id: String(c.id), deck: c.deck, front: c.front, back: c.back, example: c.example, isNew: Number(c.fsrs.state) === 0, intervals: F.previews(c.fsrs, now) }));
+    return H.send(res, 200, { ok: true, queue, counts: await cardCounts(uid), new_per_day: NEW_PER_DAY });
+  }
+
+  if (a === 'cards.review' && isPost) {
+    const id = String(body.id || ''), rating = Number(body.rating);
+    if (!/^\d{1,18}$/.test(id) || ![1, 2, 3, 4].includes(rating)) return bad(res);
+    const r = await db.query(`SELECT id, fsrs FROM cards WHERE id = $1 AND user_id = $2`, [id, uid]);
+    if (!r.length) return H.send(res, 404, { ok: false, error: 'Card not found' });
+    const wasNew = Number(r[0].fsrs.state) === 0;
+    const next = F.review(r[0].fsrs, rating, now);
+    await db.query(`UPDATE cards SET fsrs = $3::jsonb, due = $4 WHERE id = $1 AND user_id = $2`, [id, uid, JSON.stringify(next), next.due]);
+    await db.query(`INSERT INTO reviews (user_id, card_id, rating, was_new) VALUES ($1, $2, $3, $4)`, [uid, id, rating, wasNew]);
+    return H.send(res, 200, { ok: true, due: next.due, intervals: F.previews(next, now), counts: await cardCounts(uid) });
+  }
+
+  if (a === 'history' && !isPost) {
+    const [placements, reviews, lessons, cards] = await Promise.all([
+      db.query(`SELECT level, skills, score, total, taken_at FROM placement_results WHERE user_id = $1 ORDER BY taken_at DESC LIMIT 20`, [uid]),
+      db.query(`SELECT count(*)::int AS n, max(reviewed_at) AS last FROM reviews WHERE user_id = $1`, [uid]),
+      db.query(`SELECT topic, score, total, done_at FROM lesson_progress WHERE user_id = $1 ORDER BY done_at DESC`, [uid]),
+      cardCounts(uid)]);
+    return H.send(res, 200, { ok: true, placements, reviews: reviews[0], lessons, cards });
+  }
+
+  if (a === 'export' && !isPost) {
+    const q = (sql) => db.query(sql, [uid]);
+    const out = {
+      account: H.publicUser(user), profile: await profileOf(uid),
+      placement_results: await q(`SELECT level, skills, score, total, taken_at FROM placement_results WHERE user_id = $1 ORDER BY taken_at`),
+      lessons: await q(`SELECT topic, score, total, done_at FROM lesson_progress WHERE user_id = $1`),
+      cards: await q(`SELECT deck, front, back, example, source, due, created_at FROM cards WHERE user_id = $1 ORDER BY id`),
+      reviews: await q(`SELECT card_id, rating, was_new, reviewed_at FROM reviews WHERE user_id = $1 ORDER BY id`),
+    };
+    res.setHeader('Content-Disposition', 'attachment; filename="my-deutsch-klub-data.json"');
+    return H.send(res, 200, { ok: true, exported_at: now.toISOString(), ...out });
+  }
+
+  return H.send(res, 404, { ok: false, error: 'Unknown action' });
+});
