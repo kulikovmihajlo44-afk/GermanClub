@@ -28,22 +28,24 @@ const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i
 
 (async () => {
   console.log('Placement test');
-  let r = await A('test.questions'); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.questions.length, 15);
-  assert.ok(r.body.questions.every((q) => q.id.startsWith('A1-') && !('a' in q) && !('ans' in q) && q.options.length === 4)); ok('default block = 15 A1 questions, public, no answer key');
-  r = await A('test.questions&level=B1'); assert.ok(r.body.questions.length === 15 && r.body.questions.every((q) => q.id.startsWith('B1-'))); ok('level=B1 returns only that level block');
-  assert.strictEqual(P.ITEMS.length, 75); assert.strictEqual(P.PASS, 12);
-  assert.ok(P.LEVELS.every((L) => P.ITEMS.filter((i) => i.level === L).length === 15) && new Set(P.ITEMS.map((i) => i.id)).size === 75); ok('bank: 75 unique questions, 15 per level, pass mark 12');
+  let r = await A('test.bank'); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.questions.length, 75);
+  assert.ok(r.body.questions.every((q) => q.d >= 0 && q.d <= 100 && !('a' in q) && !('ans' in q))); ok('test.bank returns 75 questions with difficulty points and no answer key');
+  assert.strictEqual(P.ITEMS.length, 75); assert.strictEqual(P.TOTAL, 20);
+  assert.ok(P.LEVELS.every((L) => P.ITEMS.filter((i) => i.level === L).length === 15) && new Set(P.ITEMS.map((i) => i.id)).size === 75); ok('bank: 75 unique questions, 15 per level, test length 20');
   assert.ok(P.ITEMS.every((i) => i.a >= 0 && i.a < i.options.length && new Set(i.options).size === 4)); ok('every item has a valid key and 4 distinct options');
-  const part = (levels, wrongN = 0) => { const out = {}; levels.forEach((L) => P.ITEMS.filter((i) => i.level === L).forEach((i, k) => { out[i.id] = k < wrongN ? (i.a + 1) % 4 : i.a; })); return out; };
-  let s = P.score(part(P.LEVELS)); assert.strictEqual(s.level, 'C1'); assert.deepStrictEqual(Object.values(s.skills), ['C1', 'C1', 'C1']); assert.strictEqual(s.score, 75); assert.strictEqual(s.total, 75); assert.strictEqual(s.next, null); ok('all 75 right = C1 in every skill, nothing left to take');
-  s = P.score(part(P.LEVELS, 15)); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.score, 0); assert.strictEqual(s.next, null); ok('all wrong = A0 and the test stops (no next part)');
-  s = P.score(part(['A1'])); assert.strictEqual(s.level, 'A1'); assert.strictEqual(s.next, 'A2'); assert.strictEqual(s.total, 15); ok('only part A1 taken and passed = A1, next part A2');
-  s = P.score(part(['A1'], 3)); assert.strictEqual(s.level, 'A1'); s = P.score(part(['A1'], 4)); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.next, null); ok('pass mark boundary: 12/15 passes, 11/15 does not (and stops)');
-  s = P.score({ ...part(['A1', 'A2']), ...part(['B2']) }); assert.strictEqual(s.level, 'A2'); assert.strictEqual(s.next, 'B1'); ok('a skipped B1 blocks B2 (no level skipping)');
-  const partial = part(['A1']); delete partial['A1-15']; s = P.score(partial); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.next, 'A1'); ok('an incomplete part does not count');
-  const rd = part(['A1', 'A2', 'B1']); rd['B1-12'] = (P.ITEMS.find((i) => i.id === 'B1-12').a + 1) % 4; s = P.score(rd); assert.strictEqual(s.level, 'B1'); assert.strictEqual(s.skills.reading, 'A2'); assert.strictEqual(s.skills.grammar, 'B1'); ok('skill levels are tracked separately (reading A2, grammar B1)');
-  s = P.score(Object.fromEntries(P.ITEMS.map((i) => [i.id, -1]))); assert.strictEqual(s.level, 'A0'); ok('"I don\'t know" (-1) counts as wrong');
-  s = P.score({ 'A1-01': '0', 'A1-02': 0.5, 'A1-03': null, evil: 99 }); assert.ok(s.score <= 1 && s.level === 'A0'); ok('malformed answers do not crash or score');
+  const E = require(root + '/assets/test.js'), pub = r.body.questions;
+  const play = (knows) => { const hist = [], seq = [], answers = {}; for (let n = 0; n < 20; n++) { const q = E.pickNext(pub, hist), it = P.ITEMS.find((x) => x.id === q.id), good = knows(it); hist.push({ item: q, correct: good }); seq.push(q.id); answers[q.id] = good ? it.a : (it.a + 1) % 4; } return { seq, answers, hist }; };
+  const strong = play(() => true), weak = play(() => false), mid = play((it) => it.d <= 55);
+  assert.ok(new Set(strong.seq).size === 20 && new Set(weak.seq).size === 20); ok('adaptive test asks exactly 20 different questions');
+  const avg = (t) => t.hist.slice(-8).reduce((x, h) => x + h.item.d, 0) / 8; assert.ok(avg(strong) >= 70 && avg(weak) <= 30 && avg(mid) > avg(weak) && avg(mid) < avg(strong)); ok('correct answers lead to harder questions, wrong answers to easier ones');
+  let s = P.replay(strong.seq, strong.answers); assert.ok(['B2', 'C1'].includes(s.level) && s.score === 20 && s.total === 20); ok('all right = B2/C1');
+  s = P.replay(weak.seq, weak.answers); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.score, 0); ok('all wrong = A0');
+  s = P.replay(mid.seq, mid.answers); assert.ok(['A2', 'B1'].includes(s.level)); ok('knows up to difficulty 55 = A2/B1');
+  s = P.replay(mid.seq, mid.answers); assert.deepStrictEqual(Object.keys(s.skills).sort(), ['grammar', 'reading', 'vocab']); assert.ok(s.points >= 0 && s.points <= 100); ok('result has skills and 0-100 points');
+  const idk = Object.fromEntries(strong.seq.map((id) => [id, -1])); s = P.replay(strong.seq, idk); assert.strictEqual(s.level, 'A0'); ok('"I don\'t know" (-1) counts as wrong');
+  assert.strictEqual(P.replay(strong.seq.slice(0, 19), strong.answers), null); assert.strictEqual(P.replay([...strong.seq.slice(0, 19), strong.seq[0]], strong.answers), null); assert.strictEqual(P.replay(['evil', ...strong.seq.slice(1)], strong.answers), null); ok('incomplete, duplicated or unknown question lists are rejected');
+  s = P.replay(strong.seq, { [strong.seq[0]]: '0', [strong.seq[1]]: 0.5, [strong.seq[2]]: null }); assert.ok(s.score === 0 && s.level === 'A0'); ok('malformed answers do not crash or score');
+  assert.strictEqual(P.check('A1-01', P.ITEMS[0].a), true); assert.strictEqual(P.check('A1-01', (P.ITEMS[0].a + 1) % 4), false); assert.strictEqual(P.check('nope', 0), null); assert.strictEqual(P.check('A1-01', '0'), null); ok('check: right / wrong / unknown id / malformed');
 
   console.log('Access control');
   assert.strictEqual((await A('state')).code, 401); ok('state requires login (401)');
@@ -53,10 +55,10 @@ const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i
   assert.strictEqual((await A('nope', { cookie: ca })).code, 404); ok('unknown action = 404');
 
   console.log('Test results');
-  r = await A('test.submit', { body: { answers: answersFor((i) => i.level === 'A1' || i.level === 'A2') } }); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.level, 'A2'); assert.strictEqual(r.body.saved, false); ok('guest gets a result (A2), nothing is saved');
-  r = await A('test.submit', { cookie: ca, body: { answers: part(['A1']), final: false } }); assert.ok(r.body.saved === false && r.body.next === 'A2'); r = await A('state', { cookie: ca }); assert.strictEqual(r.body.placement, null); ok('checkpoint (final:false) is scored but not saved');
-  r = await A('test.submit', { cookie: ca, body: { answers: answersFor((i) => i.level === 'A1' || i.level === 'A2') } }); assert.strictEqual(r.body.saved, true);
-  r = await A('state', { cookie: ca }); assert.strictEqual(r.body.placement.level, 'A2'); assert.strictEqual(r.body.profile.onboarded, false); assert.strictEqual(r.body.cards.total, 0); ok('member result is saved and shows in state; not onboarded yet');
+  r = await A('test.submit', { body: { seq: strong.seq, answers: strong.answers } }); assert.strictEqual(r.code, 200); assert.ok(['B2', 'C1'].includes(r.body.level)); assert.strictEqual(r.body.saved, false); assert.strictEqual(r.body.total, 20); assert.ok(!('answers' in r.body)); ok('guest gets a result, nothing is saved');
+  r = await A('test.submit', { cookie: ca, body: { seq: strong.seq.slice(0, 10), answers: strong.answers } }); assert.strictEqual(r.code, 400); r = await A('state', { cookie: ca }); assert.strictEqual(r.body.placement, null); ok('an incomplete test is refused and not saved');
+  r = await A('test.submit', { cookie: ca, body: { seq: strong.seq, answers: strong.answers } }); assert.strictEqual(r.body.saved, true);
+  r = await A('state', { cookie: ca }); assert.ok(['B2', 'C1'].includes(r.body.placement.level)); assert.strictEqual(r.body.profile.onboarded, false); assert.strictEqual(r.body.cards.total, 0); ok('member result is saved and shows in state; not onboarded yet');
   assert.strictEqual((await A('test.submit', { body: {} })).code, 400); ok('missing answers = 400');
 
   console.log('Onboarding');
