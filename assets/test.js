@@ -73,8 +73,11 @@ var DKPlacement = (function () {
     var pool = bank.filter(function (q) { return !asked[q.id]; });
     var spread = pool.filter(function (q) { var t = textOf(q); return !t || (textN[t] || 0) < CFG.maxPerText; });
     if (spread.length) pool = spread;
+    // closeness is measured relative to the nearest question that is still available, so when the questions
+    // around the target run out we still get the next-closest ones (never a random far-away question)
+    var minDist = Math.min.apply(null, pool.map(function (q) { return Math.abs(q.d - target); }));
     var w = pool.map(function (q) {
-      var near = Math.exp(-0.5 * Math.pow((q.d - target) / CFG.pickSd, 2)) + 1e-4;
+      var near = Math.exp(-0.5 * Math.pow((Math.abs(q.d - target) - minDist) / CFG.pickSd, 2)) + 1e-12;
       var n = skillN[q.skill] || 0, quota = CFG.quota[q.skill] || 6;
       var mix = n >= quota ? 0.05 : 0.4 + 0.6 * (1 - n / quota);
       return near * mix;
