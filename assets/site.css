@@ -102,11 +102,11 @@ h2.center, .subtext.center { text-align: center; }
   color: var(--ink);
 }
 .logo-mark {
-  width: 13px; height: 13px;
-  border: 1px solid var(--ink);
-  border-radius: 50%;
+  width: 50px; height: 40px;
+  background: url(/assets/img/logo-mark.png) center / contain no-repeat;
   flex: none;
 }
+@media (max-width: 600px) { .logo-mark { width: 41px; height: 33px; } }
 .logo-text {
   font-family: var(--serif);
   font-size: 1.05rem;
