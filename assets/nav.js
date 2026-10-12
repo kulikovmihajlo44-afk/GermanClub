@@ -16,6 +16,7 @@
     { id: "cards",   area: "member", label: "Cards",        href: "/app/cards",    ready: true,  tab: "Cards" },
     { id: "club",    area: "member", label: "Club",         href: "/app/club",     ready: true },
     { id: "account", area: "member", label: "Account",      href: "/app/account",  ready: true },
+    { id: "admin",   area: "member", label: "Admin",        href: "/app/admin",    ready: true, adminOnly: true },  // shown only to admins (DK.isAdmin)
     // later (hidden until ready)
     { id: "goethe",  area: "member", label: "Goethe",       href: "/app/learn/goethe", ready: false },
     { id: "watch",   area: "member", label: "Watch",        href: "/app/watch",    ready: false },
@@ -26,7 +27,7 @@
   DK.CTA = { label: "Take placement test", href: "/test" };
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-  function items(area) { return DK.MENU.filter(function (m) { return m.area === area && m.ready; }); }
+  function items(area) { return DK.MENU.filter(function (m) { return m.area === area && m.ready && (!m.adminOnly || DK.isAdmin); }); }
   function isActive(href, path) { return href === "/app" ? path === "/app" || path === "/app/" || path.indexOf("/app/onboarding") === 0 : path === href || path.indexOf(href + "/") === 0; }
 
   var LOGO = '<a class="logo" href="/?home=1" aria-label="Deutsch-Klub — club website"><span class="logo-mark" aria-hidden="true"></span><span class="logo-text">Deutsch-Klub</span></a>';
