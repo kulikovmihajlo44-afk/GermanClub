@@ -81,7 +81,7 @@
       h("p", { "class": "a-muted", text: "There is no page at " + path + " (yet)." }), DKA.link("/app", "Back to my dashboard", "btn-solid")])]));
   }
   function markActive(path) {
-    document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : "My app");
+    document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : path.indexOf("/admin") > -1 ? "Admin" : "My app");
     DK.renderHeaderActive && DK.renderHeaderActive(path);
     var all = document.querySelectorAll("#top .nav-link, #tabbar .tab[href]");
     for (var i = 0; i < all.length; i++) {
@@ -115,6 +115,8 @@
   };
   function start() {
     var s = DKA.state;
+    DK.isAdmin = !!s.user.is_admin;                                // admins get the extra "Admin" entry (the server re-checks every admin request)
+    DK.renderHeader(document.getElementById("top"), "member");
     DK.mountMenu(document.getElementById("acct"), [
       { label: "Account", onClick: function () { DKA.nav("/app/account"); } },
       { label: "Log out", danger: true, onClick: function () { DK.logout(); } }], s.user.full_name);
