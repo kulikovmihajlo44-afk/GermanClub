@@ -17,6 +17,15 @@ module.exports = H.handler(async (req, res) => {
   const okHash = /^[0-9a-f]{64}$/.test(hashHex) && crypto.timingSafeEqual(sha(given), Buffer.from(hashHex, 'hex'));
   if (!okEnv && !okHash) return H.send(res, 401, { ok: false });
   const rows = await db.query(
-    `SELECT id, full_name, email, level, want_test, want_notify, source, created_at, last_login FROM users ORDER BY created_at`, []);
+    `SELECT u.id, u.full_name, u.email, u.level, u.want_test, u.want_notify, u.source, u.created_at, u.last_login,
+            u.goal, u.interests, u.minutes_per_day, u.exam_date, u.onboarded_at,
+            p.level AS placement_level, p.skills AS placement_skills, p.score AS placement_score,
+            p.total AS placement_total, p.taken_at AS placement_taken_at
+       FROM users u
+       LEFT JOIN LATERAL (
+         SELECT level, skills, score, total, taken_at FROM placement_results
+          WHERE user_id = u.id ORDER BY taken_at DESC, id DESC LIMIT 1
+       ) p ON true
+      ORDER BY u.created_at`, []);
   return H.send(res, 200, { ok: true, count: rows.length, users: rows });
 });
