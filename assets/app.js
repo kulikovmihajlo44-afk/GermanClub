@@ -127,7 +127,7 @@
     // a test taken as a guest before signing up: attach it to the new account
     var guest = null; try { guest = JSON.parse(localStorage.getItem("dk_guest_answers") || "null"); } catch (e) {}
     if (guest && !s.placement) {
-      DK.api("/api/app?a=test.submit", { answers: guest }).then(function () { try { localStorage.removeItem("dk_guest_answers"); } catch (e) {} return DKA.refresh(); }).then(go, go);
+      DK.api("/api/app?a=test.submit", { seq: guest.seq, answers: guest.answers }).then(function (r) { if (r.status === 200 || r.status === 400) { try { localStorage.removeItem("dk_guest_answers"); } catch (e) {} } return DKA.refresh(); }).then(go, go);
     } else go();
   }
 
