@@ -44,6 +44,8 @@
     return DK.api("/api/app?a=state").then(function (res) { if (res.status === 200 && res.j.ok) DKA.state = res.j; return DKA.state; });
   };
   DKA.nav = function (href, replace) {
+    // only /app/... is rendered by this router; anything else (/test, /start, /) is a separate page and needs a real page load
+    if (!/^\/app(\/|$|\?|#)/.test(href)) { if (replace) location.replace(href); else location.href = href; return; }
     history[replace ? "replaceState" : "pushState"](null, "", href); render(); window.scrollTo(0, 0);
   };
 
