@@ -265,6 +265,7 @@ document.addEventListener("DOMContentLoaded", function () {
   trap.style.cssText = "position:absolute;left:-9000px;top:-9000px;height:0;width:0;opacity:0";
   form.appendChild(trap);
 
+  try { if (localStorage.getItem("dk_start") === "A0") { document.getElementById("level").value = "A0"; localStorage.removeItem("dk_start"); } } catch (e) {}   // came from the test page as a complete beginner
   var btn = form.querySelector("button[type=submit]");
   form.addEventListener("submit", function (ev) {
     ev.preventDefault();
