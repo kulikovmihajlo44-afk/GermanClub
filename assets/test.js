@@ -9,6 +9,8 @@ var DKPlacement = (function () {
     total: 20,                 // always exactly 20 questions
     scale: 12,                 // steepness of the difficulty curve (points). P(right) = 50% when ability == difficulty
     guess: 0.25,               // chance of a lucky guess with 4 options
+    // beginner mode ("A0"): the first questions are the easiest A1 ones and the estimate starts near zero
+    starts: { A0: { mean: 5, sd: 15, warm: 5, maxD: 14 } },   // warm: the first 5 questions come only from A1 (difficulty <= 14)
     priorMean: 35,             // we start at "upper A2", so the first question is easy-to-medium
     priorSd: 30,
     gridMin: -10, gridMax: 120,
@@ -18,6 +20,7 @@ var DKPlacement = (function () {
     streakStep: 4, streakMax: 12,   // 2+ right (or wrong) in a row pushes the target harder (or easier)
     maxPerText: 2,             // max questions on the same reading text
     quota: { grammar: 8, vocab: 6, reading: 6 },   // 8 + 6 + 6 = 20
+    chanceFloor: 5,            // 5 of 20 = what pure guessing gives (25 %): this or less is never placed above A0
     skillPriorSd: 15, minSkillAnswers: 2
   };
   var NAMES = ["A0", "A1", "A2", "B1", "B2", "C1"];
@@ -62,15 +65,18 @@ var DKPlacement = (function () {
   }
 
   // Choose the next question: random, but weighted towards the current difficulty target.
-  function pickNext(bank, history, rnd) {
+  // start: optional start mode ("A0" = complete beginner) - it only steers which questions are chosen, never the final score
+  function pickNext(bank, history, rnd, start) {
     rnd = rnd || Math.random;
     var asked = {}, skillN = {}, textN = {};
     history.forEach(function (h) {
       asked[h.item.id] = 1; skillN[h.item.skill] = (skillN[h.item.skill] || 0) + 1;
       var t = textOf(h.item); if (t) textN[t] = (textN[t] || 0) + 1;
     });
-    var target = estimate(history).theta + streakShift(history);
+    var st = start && CFG.starts[start];
+    var target = (st ? estimate(history, st.mean, st.sd) : estimate(history)).theta + streakShift(history);
     var pool = bank.filter(function (q) { return !asked[q.id]; });
+    if (st && history.length < st.warm) { var easy = pool.filter(function (q) { return q.d <= st.maxD; }); if (easy.length) pool = easy; }
     var spread = pool.filter(function (q) { var t = textOf(q); return !t || (textN[t] || 0) < CFG.maxPerText; });
     if (spread.length) pool = spread;
     // closeness is measured relative to the nearest question that is still available, so when the questions
@@ -90,6 +96,8 @@ var DKPlacement = (function () {
   // Final result from the full history (server and client use this same function).
   function summarize(history) {
     var est = estimate(history), idx = levelIndex(est.theta);
+    var right = history.filter(function (h) { return h.correct; }).length;
+    if (right <= CFG.chanceFloor) { idx = 0; est = { theta: Math.min(est.theta, CFG.levels[0][1] - 1), sd: est.sd }; }   // not above guessing level = A0
     var cuts = [0].concat(CFG.levels.map(function (l) { return l[1]; }), [112]);
     var lo = cuts[idx], hi = cuts[idx + 1];
     var progress = Math.max(0, Math.min(1, (est.theta - lo) / (hi - lo)));
@@ -123,21 +131,31 @@ if (typeof document !== "undefined") (function () {
   function mount() { main.innerHTML = ""; Array.prototype.slice.call(arguments).forEach(function (n) { if (n) main.appendChild(n); }); window.scrollTo(0, 0); }
   var eyebrow = function (t) { return h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), t]); };
   var bank = [], history = [], seq = [], answers = {}, current = null, order = [], busy = false;
-  function shuffled(n) { var a = []; for (var k = 0; k < n; k++) a.push(k); for (var j = n - 1; j > 0; j--) { var r = Math.floor(Math.random() * (j + 1)), t = a[j]; a[j] = a[r]; a[r] = t; } return a; }  // display order of the options (the answer key is not position based)
-
   function intro() {
     mount(eyebrow("Placement test"), h("h1", { "class": "a-h1", text: "Find your German level" }),
       h("p", { "class": "a-muted", text: TOTAL + " questions in grammar, vocabulary and reading. The test adapts to you: the better you do, the harder the questions get. Free, no account needed." }),
-      h("ul", { "class": "a-list" }, [h("li", { text: "It takes about 8 to 12 minutes. The questions run from A1 to C1 and you will not see all of them." }), h("li", { text: "If you don’t know an answer, choose “I don’t know” — guessing makes the result less accurate." }), h("li", { text: "You can’t go back to an earlier question, because the next question depends on your answer." }), h("li", { text: "The result is indicative, not an official certificate. Listening is not part of this test." }), h("li", { text: "Your answers are scored on our server; nothing is saved unless you have an account." })]),
-      h("button", { "class": "btn-solid", id: "go", type: "button", text: "Start the test", onclick: start }));
+      h("ul", { "class": "a-list" }, [h("li", { text: "It takes about 8 to 12 minutes. The questions run from A1 to C1 and you will not see all of them." }), h("li", { text: "If you don’t know an answer, choose “I don’t know” — guessing makes the result less accurate." }), h("li", { text: "You can’t go back to an earlier question, because the next question depends on your answer." }), h("li", { text: "If you do not reach the A1 mark, your level is A0 (absolute beginner) and we suggest where to begin." }), h("li", { text: "The result is indicative, not an official certificate. Listening is not part of this test." }), h("li", { text: "Your answers are scored on our server; nothing is saved unless you have an account." })]),
+      h("button", { "class": "btn-solid", id: "go", type: "button", text: "Start the test", onclick: start }),
+      h("p", { "class": "a-muted a-small", style: "margin-top:1.2rem", text: "Never learned any German? Then you do not need a test." }),
+      h("button", { "class": "btn-line", id: "go0", type: "button", text: "I’m a complete beginner (A0) — skip the test", onclick: beginner }));
+  }
+  // A0 = no test: logged-in members get level A0 and go to the dashboard; visitors continue to sign-up with A0 preselected
+  function beginner() {
+    var b0 = document.getElementById("go0"); if (b0) { b0.disabled = true; b0.textContent = "One moment…"; }
+    DK.api("/api/app?a=beginner", {}).then(function (r) {
+      if (r.status === 200 && r.j.ok) { location.href = "/app"; return; }
+      try { localStorage.setItem("dk_start", "A0"); } catch (e) {}
+      location.href = "/signup";
+    }).catch(function () { if (b0) { b0.disabled = false; b0.textContent = "I’m a complete beginner (A0) — skip the test"; } });
   }
   function start() {
     var b = document.getElementById("go"); if (b) { b.disabled = true; b.textContent = "Loading…"; }
+    var b0 = document.getElementById("go0"); if (b0) b0.disabled = true;
     DK.api("/api/app?a=test.bank").then(function (r) {
-      if (r.status === 503) { if (b) { b.textContent = "Start the test"; b.disabled = false; } return mount(eyebrow("Placement test"), h("p", { text: "The test is being set up — please try again in a few minutes." })); }
+      if (r.status === 503) { if (b) { b.textContent = "Start the test"; b.disabled = false; } if (b0) b0.disabled = false; return mount(eyebrow("Placement test"), h("p", { text: "The test is being set up — please try again in a few minutes." })); }
       if (r.status !== 200 || !r.j.ok) throw new Error("q");
       bank = r.j.questions; history = []; seq = []; answers = {}; busy = false; nextQuestion();
-    }).catch(function () { if (b) { b.disabled = false; b.textContent = "Try again"; } });
+    }).catch(function () { if (b) { b.disabled = false; b.textContent = "Try again"; } if (b0) b0.disabled = false; });
   }
   function nextQuestion() {
     if (history.length >= TOTAL) return submit();
@@ -184,17 +202,23 @@ if (typeof document !== "undefined") (function () {
     });
   }
   function result(r) {
-    var guest = !r.saved;
+    var guest = !r.saved, beginner = r.level === "A0";
     if (guest) { try { localStorage.setItem("dk_guest_answers", JSON.stringify({ seq: seq, answers: answers })); } catch (e) {} }
     var skills = Object.keys(r.skills).map(function (k) { return h("li", null, [h("span", { text: SK[k] }), h("strong", { text: r.skills[k] === "A0" ? "below A1" : r.skills[k] })]); });
-    mount(eyebrow("Your result"), h("p", { "class": "t-level", text: r.level }),
-      h("p", { "class": "a-muted", style: "text-align:center", text: (r.level === "A0" ? "You are at the very beginning — a perfect place to start. " : "Estimated level. ") + (r.border ? "You are close to the border between " + r.border.replace("/", " and ") + ". " : "") + r.score + " of " + r.total + " answers correct. The questions adapt to you, so the level matters more than the number of correct answers." }),
+    var head = beginner
+      ? [h("p", { "class": "t-level", text: "A0" }),
+         h("p", { "class": "a-muted", style: "text-align:center", text: "Absolute beginner. You did not reach the A1 mark yet, and that is completely fine: we suggest that you start at level A0 with the alphabet, greetings and everyday phrases, then move on to A1." }),
+         h("p", { "class": "a-muted a-small", style: "text-align:center", text: r.score + " of " + r.total + " answers correct. This is only a suggestion — if it feels too low, you can retake the test." })]
+      : [h("p", { "class": "t-level", text: r.level }),
+         h("p", { "class": "a-muted", style: "text-align:center", text: "Estimated level. " + (r.border ? "You are close to the border between " + r.border.replace("/", " and ") + ". " : "") + r.score + " of " + r.total + " answers correct. The questions adapt to you, so the level matters more than the number of correct answers." })];
+    mount.apply(null, [eyebrow("Your result")].concat(head, [
       h("ul", { "class": "t-skills" }, skills),
       h("p", { "class": "a-muted a-small", text: "Indicative result, not an official certificate. It is based on grammar, vocabulary and reading only." }),
-      h("div", { "class": "t-cta" }, guest ? [
-        h("a", { "class": "btn-solid", href: "/signup", text: "Create my free account and save this" }),
+      h("div", { "class": "t-cta" }, (guest ? [
+        h("a", { "class": "btn-solid", href: "/signup", text: beginner ? "Create my free account and start at A0" : "Create my free account and save this" }),
         h("button", { "class": "btn-line", type: "button", text: "I already have an ID — log in", onclick: DK.openLogin })]
-        : [h("a", { "class": "btn-solid", href: "/app/onboarding", text: "Continue" })]));
+        : [h("a", { "class": "btn-solid", href: "/app/onboarding", text: beginner ? "Start at A0" : "Continue" })]).concat(
+        beginner ? [h("button", { "class": "btn-line", type: "button", text: "Retake the test", onclick: intro })] : []))]));
   }
   intro();
 })();
