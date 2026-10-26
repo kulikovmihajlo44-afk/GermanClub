@@ -23,7 +23,7 @@ function call(fn, { method = 'POST', body = {}, cookie = '', url = '/', origin =
 }
 const A = (a, o = {}) => call(app, { method: o.body !== undefined ? 'POST' : 'GET', url: '/api/app?a=' + a, ...o });
 const cookieOf = (r) => (r.headers['set-cookie'] || '').split(';')[0];
-async function signup(name, email) { const r = await call(apply, { body: { fullname: name, email, level: 'A2' } }); assert.strictEqual(r.code, 200, JSON.stringify(r.body)); return cookieOf(r); }
+async function signup(name, email, level = 'A2') { const r = await call(apply, { body: { fullname: name, email, level } }); assert.strictEqual(r.code, 200, JSON.stringify(r.body)); return cookieOf(r); }
 const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i) ? i.a : (i.a + 1) % i.options.length]));
 
 (async () => {
@@ -42,9 +42,13 @@ const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i
   s = P.replay(weak.seq, weak.answers); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.score, 0); ok('all wrong = A0');
   s = P.replay(mid.seq, mid.answers); assert.ok(['A2', 'B1'].includes(s.level)); ok('knows up to difficulty 55 = A2/B1');
   s = P.replay(mid.seq, mid.answers); assert.deepStrictEqual(Object.keys(s.skills).sort(), ['grammar', 'reading', 'vocab']); assert.ok(s.points >= 0 && s.points <= 100); ok('result has skills and 0-100 points');
-  const idk = Object.fromEntries(strong.seq.map((id) => [id, -1])); s = P.replay(strong.seq, idk); assert.strictEqual(s.level, 'A0'); ok('"I don\'t know" (-1) counts as wrong');
+  const idk = Object.fromEntries(strong.seq.map((id) => [id, -1])); s = P.replay(strong.seq, idk); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.score, 0); ok('"I don\'t know" (-1) counts as wrong, 0 of 20 is always A0');
   assert.strictEqual(P.replay(strong.seq.slice(0, 19), strong.answers), null); assert.strictEqual(P.replay([...strong.seq.slice(0, 19), strong.seq[0]], strong.answers), null); assert.strictEqual(P.replay(['evil', ...strong.seq.slice(1)], strong.answers), null); ok('incomplete, duplicated or unknown question lists are rejected');
   s = P.replay(strong.seq, { [strong.seq[0]]: '0', [strong.seq[1]]: 0.5, [strong.seq[2]]: null }); assert.ok(s.score === 0 && s.level === 'A0'); ok('malformed answers do not crash or score');
+  const beginner = (knows) => { const hist = [], seq = [], answers = {}; for (let n = 0; n < 20; n++) { const q = E.pickNext(pub, hist, null, 'A0'), it = P.ITEMS.find((x) => x.id === q.id), good = knows(it); hist.push({ item: q, correct: good }); seq.push(q.id); answers[q.id] = good ? it.a : (it.a + 1) % 4; } return { seq, answers, hist }; };
+  let bOk = true; for (let k = 0; k < 100; k++) { const b = beginner((it) => it.d <= 8); if (!b.hist.slice(0, 5).every((h) => h.item.d <= 14 && h.item.id.startsWith('A1-'))) bOk = false; } assert.ok(bOk); ok('beginner mode (A0): the first 5 questions are always A1');
+  const weakB = beginner(() => false); s = P.replay(weakB.seq, weakB.answers); assert.strictEqual(s.level, 'A0'); assert.strictEqual(s.skills.grammar, 'A0'); ok('not enough points for A1 = result A0 (below A1)');
+  const strongB = beginner(() => true); s = P.replay(strongB.seq, strongB.answers); assert.ok(['B2', 'C1'].includes(s.level)); ok('beginner mode does not cap a strong user (the start only steers the questions, not the score)');
   assert.strictEqual(P.check('A1-01', P.ITEMS[0].a), true); assert.strictEqual(P.check('A1-01', (P.ITEMS[0].a + 1) % 4), false); assert.strictEqual(P.check('nope', 0), null); assert.strictEqual(P.check('A1-01', '0'), null); ok('check: right / wrong / unknown id / malformed');
 
   console.log('Access control');
@@ -60,6 +64,12 @@ const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i
   r = await A('test.submit', { cookie: ca, body: { seq: strong.seq, answers: strong.answers } }); assert.strictEqual(r.body.saved, true);
   r = await A('state', { cookie: ca }); assert.ok(['B2', 'C1'].includes(r.body.placement.level)); assert.strictEqual(r.body.profile.onboarded, false); assert.strictEqual(r.body.cards.total, 0); ok('member result is saved and shows in state; not onboarded yet');
   assert.strictEqual((await A('test.submit', { body: {} })).code, 400); ok('missing answers = 400');
+  const cc = await signup('Carl Beginner', 'carl@example.com', 'A0');
+  r = await A('state', { cookie: cc }); assert.ok(r.body.placement && r.body.placement.level === 'A0' && r.body.placement.declared === true); assert.strictEqual(r.body.placement.total, 0); ok('signing up as A0 = level A0 without a test (no test needed, dashboard works)');
+  r = await A('state', { cookie: ca }); assert.ok(!r.body.placement.declared); ok('a real test result is not marked as declared');
+  r = await A('beginner', { cookie: cb, body: {} }); assert.strictEqual(r.code, 200); r = await A('state', { cookie: cb }); assert.strictEqual(r.body.placement.level, 'A0'); ok('"I am a complete beginner" sets A0 for a member who has no test result');
+  r = await A('test.submit', { cookie: cc, body: { seq: strong.seq, answers: strong.answers } }); assert.strictEqual(r.body.saved, true); r = await A('state', { cookie: cc }); assert.ok(['B2', 'C1'].includes(r.body.placement.level) && !r.body.placement.declared); ok('a real test replaces the declared A0');
+  assert.strictEqual((await A('beginner', { body: {} })).code, 401); ok('beginner needs a login');
 
   console.log('Onboarding');
   assert.strictEqual((await A('onboarding', { cookie: ca, body: { goal: 'hack', minutes: 10 } })).code, 400);
@@ -99,7 +109,7 @@ const answersFor = (pred) => Object.fromEntries(P.ITEMS.map((i) => [i.id, pred(i
   r = await call(settings, { cookie: ca, body: { delete: true } }); assert.strictEqual(r.body.deleted, true);
   for (const t of ['placement_results', 'lesson_progress', 'cards', 'reviews']) assert.strictEqual((await pg.query(`SELECT count(*)::int n FROM ${t} WHERE user_id = (SELECT 'none')`)).rows[0].n, 0);
   const left = (await pg.query(`SELECT (SELECT count(*) FROM cards)::int c, (SELECT count(*) FROM reviews)::int r, (SELECT count(*) FROM lesson_progress)::int l, (SELECT count(*) FROM placement_results)::int p`)).rows[0];
-  assert.deepStrictEqual(left, { c: 0, r: 0, l: 0, p: 0 }); ok('deleting the account erases cards, reviews, lessons and test results');
+  assert.deepStrictEqual(left, { c: 0, r: 0, l: 0, p: 1 }); ok('deleting the account erases cards, reviews, lessons and test results (only Carl\'s own test result is left)');
   console.log('\nApp API: ' + passed + ' checks passed');
   process.exit(0);
 })().catch((e) => { console.error('FAIL', e); process.exit(1); });
