@@ -2,6 +2,7 @@
 //   GET  ?a=state            dashboard data (profile, latest placement, lesson progress, card counts)
 //   GET  ?a=test.bank        the adaptive placement test's question bank with difficulty points, WITHOUT the answer key (public)
 //   POST ?a=test.check       {id, answer:index}  -> {correct}   one answer at a time (public)
+//   POST ?a=beginner         (logged in) sets the level to A0 - no test needed
 //   POST ?a=test.submit      {seq:[20 ids in the order asked], answers:{id:index|-1}}  -> {level, points, border, skills, score, total, saved}   (public; saved only when logged in)
 //   POST ?a=onboarding       {goal, interests[], minutes, exam_date?}
 //   POST ?a=lesson.done      {topic, score, total}
@@ -9,13 +10,10 @@
 //   GET  ?a=cards.due        today's queue (learning/review cards due + up to NEW_PER_DAY new ones)
 //   POST ?a=cards.review     {id, rating 1..4}
 //   GET  ?a=history          the member's own history     GET ?a=export   everything we store about the member
-//   GET  ?a=admin.users      (admins only, ADMIN_IDS) every member with latest placement level, goal, interests, exam date
-//   POST ?a=admin.delete     (admins only) {id}  deletes another member and all their data
 const db = require('../lib/db');
 const H = require('../lib/http');
 const P = require('../lib/placement');
 const F = require('../lib/fsrs');
-const { formatId, normalizeId, isValidId } = require('../lib/ids');
 
 const NEW_PER_DAY = 10;
 const GOALS = ['goethe', 'career', 'interest'];
@@ -93,7 +91,15 @@ module.exports = H.handler(async (req, res) => {
       profileOf(uid), latestPlacement(uid),
       db.query(`SELECT topic, score, total, done_at FROM lesson_progress WHERE user_id = $1`, [uid]),
       cardCounts(uid)]);
-    return H.send(res, 200, { ok: true, user: H.publicUser(user), profile, placement, lessons, cards });
+    // a member who chose A0 (absolute beginner) does not take the test: A0 counts as their level until a real test result exists
+    const declared = !placement && user.level === 'A0' ? { level: 'A0', skills: { grammar: 'A0', vocab: 'A0', reading: 'A0' }, score: 0, total: 0, taken_at: null, declared: true } : placement;
+    return H.send(res, 200, { ok: true, user: H.publicUser(user), profile, placement: declared, lessons, cards });
+  }
+
+  // "I'm a complete beginner": level A0 without a test (a later real test result replaces it)
+  if (a === 'beginner' && isPost) {
+    await db.query(`UPDATE users SET level = 'A0' WHERE id = $1`, [uid]);
+    return H.send(res, 200, { ok: true });
   }
 
   if (a === 'onboarding' && isPost) {
@@ -160,38 +166,6 @@ module.exports = H.handler(async (req, res) => {
     await db.query(`UPDATE cards SET fsrs = $3::jsonb, due = $4 WHERE id = $1 AND user_id = $2`, [id, uid, JSON.stringify(next), next.due]);
     await db.query(`INSERT INTO reviews (user_id, card_id, rating, was_new) VALUES ($1, $2, $3, $4)`, [uid, id, rating, wasNew]);
     return H.send(res, 200, { ok: true, due: next.due, intervals: F.previews(next, now), counts: await cardCounts(uid) });
-  }
-
-  // ---- admin window: every request is re-checked on the server (the menu entry in the browser is only a convenience)
-  if (a.startsWith('admin.')) {
-    if (!H.isAdmin(uid)) return H.send(res, 403, { ok: false, error: 'Forbidden' });
-    if (a === 'admin.users' && !isPost) {
-      const rows = await db.query(
-        `SELECT u.id, u.full_name, u.email, u.created_at, u.goal, u.interests, u.exam_date, u.onboarded_at,
-                p.level AS placement_level, p.score AS placement_score, p.total AS placement_total, p.taken_at AS placement_taken_at
-           FROM users u
-           LEFT JOIN LATERAL (
-             SELECT level, score, total, taken_at FROM placement_results WHERE user_id = u.id ORDER BY taken_at DESC, id DESC LIMIT 1
-           ) p ON true
-          ORDER BY u.created_at DESC LIMIT 2000`, []);
-      const day = (d) => d ? String(d.toISOString ? d.toISOString() : d).slice(0, 10) : null;
-      const users = rows.map((r) => ({
-        id: formatId(r.id), full_name: r.full_name, email: r.email, created_at: r.created_at,
-        is_admin: H.isAdmin(r.id), is_me: r.id === uid,
-        goal: r.goal || null, interests: r.interests || [], exam_date: day(r.exam_date), onboarded: !!r.onboarded_at,
-        placement: r.placement_level ? { level: r.placement_level, score: r.placement_score, total: r.placement_total, taken_at: r.placement_taken_at } : null }));
-      return H.send(res, 200, { ok: true, users });
-    }
-    if (a === 'admin.delete' && isPost) {
-      const target = normalizeId(str(body.id, 30));
-      if (!isValidId(target)) return bad(res, 'Invalid ID');
-      if (target === uid) return bad(res, 'To delete your own account, use Account.');
-      if (H.isAdmin(target)) return bad(res, 'Admin accounts cannot be deleted here.');
-      const gone = await db.query('DELETE FROM users WHERE id = $1 RETURNING id', [target]);   // cascades to results, lessons, cards, reviews
-      if (!gone.length) return H.send(res, 404, { ok: false, error: 'User not found' });
-      return H.send(res, 200, { ok: true, deleted: formatId(target) });
-    }
-    return H.send(res, 404, { ok: false, error: 'Unknown action' });
   }
 
   if (a === 'history' && !isPost) {
