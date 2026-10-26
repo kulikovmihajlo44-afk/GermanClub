@@ -44,8 +44,6 @@
     return DK.api("/api/app?a=state").then(function (res) { if (res.status === 200 && res.j.ok) DKA.state = res.j; return DKA.state; });
   };
   DKA.nav = function (href, replace) {
-    // only /app/... is rendered by this router; anything else (/test, /start, /) is a separate page and needs a real page load
-    if (!/^\/app(\/|$|\?|#)/.test(href)) { if (replace) location.replace(href); else location.href = href; return; }
     history[replace ? "replaceState" : "pushState"](null, "", href); render(); window.scrollTo(0, 0);
   };
 
@@ -83,7 +81,7 @@
       h("p", { "class": "a-muted", text: "There is no page at " + path + " (yet)." }), DKA.link("/app", "Back to my dashboard", "btn-solid")])]));
   }
   function markActive(path) {
-    document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : path.indexOf("/admin") > -1 ? "Admin" : "My app");
+    document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : "My app");
     DK.renderHeaderActive && DK.renderHeaderActive(path);
     var all = document.querySelectorAll("#top .nav-link, #tabbar .tab[href]");
     for (var i = 0; i < all.length; i++) {
@@ -117,8 +115,6 @@
   };
   function start() {
     var s = DKA.state;
-    DK.isAdmin = !!s.user.is_admin;                                // admins get the extra "Admin" entry (the server re-checks every admin request)
-    DK.renderHeader(document.getElementById("top"), "member");
     DK.mountMenu(document.getElementById("acct"), [
       { label: "Account", onClick: function () { DKA.nav("/app/account"); } },
       { label: "Log out", danger: true, onClick: function () { DK.logout(); } }], s.user.full_name);
@@ -130,9 +126,9 @@
     };
     // a test taken as a guest before signing up: attach it to the new account
     var guest = null; try { guest = JSON.parse(localStorage.getItem("dk_guest_answers") || "null"); } catch (e) {}
-    if (guest && !s.placement) {
-      DK.api("/api/app?a=test.submit", { seq: guest.seq, answers: guest.answers }).then(function (r) { if (r.status === 200 || r.status === 400) { try { localStorage.removeItem("dk_guest_answers"); } catch (e) {} } return DKA.refresh(); }).then(go, go);
-    } else go();
+    if (guest && (!s.placement || s.placement.declared) && guest.seq && guest.answers) {   // adaptive test: the question order is needed to replay it
+      DK.api("/api/app?a=test.submit", { seq: guest.seq, answers: guest.answers }).then(function () { try { localStorage.removeItem("dk_guest_answers"); } catch (e) {} return DKA.refresh(); }).then(go, go);
+    } else { if (guest && !guest.seq) { try { localStorage.removeItem("dk_guest_answers"); } catch (e) {} } go(); }
   }
 
   // ---------- "your ID is ready" (right after sign-up) ----------
@@ -181,7 +177,9 @@
         h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Dashboard"]),
         h("h1", { "class": "a-h1", text: "Welcome, " + s.user.full_name }),
         h("div", { "class": "a-badges" }, facts),
-        h("p", { "class": "a-muted a-small", text: "Placement result: " + Object.keys(p.skills).map(function (k) { return DKA.skillName(k) + " " + p.skills[k]; }).join(" · ") + " (indicative, not an official certificate)." }),
+        p.declared
+          ? h("p", { "class": "a-muted a-small" }, ["You chose to start at A0 (absolute beginner), so no placement test is needed. ", DKA.link("/test", "Take the placement test anyway", "lnk")])
+          : h("p", { "class": "a-muted a-small", text: "Placement result: " + Object.keys(p.skills).map(function (k) { return DKA.skillName(k) + " " + p.skills[k]; }).join(" · ") + " (indicative, not an official certificate)." }),
         h("h2", { "class": "a-h2", text: "Today" }),
         today.length ? h("div", { "class": "a-today" }, today.map(function (it) {
           return h("a", { "class": "a-item", href: it.href, "data-link": "" }, [h("div", null, [h("strong", { text: it.t }), h("span", { text: it.sub })]), h("em", { text: it.cta + " →" })]);
@@ -229,7 +227,7 @@
     root.appendChild(h("div", { "class": "a-wrap a-narrow" }, [
       h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), pr.onboarded ? "Your plan" : "Last step"]),
       h("h1", { "class": "a-h1", text: pr.onboarded ? "Change your plan" : "Tell us what you need" }),
-      s.placement ? h("p", { "class": "a-muted", text: "Your placement level: " + s.placement.level + ". Three quick questions so that “Today” fits your life." }) : null,
+      s.placement ? h("p", { "class": "a-muted", text: (s.placement.declared ? "Your starting level: " : "Your placement level: ") + s.placement.level + ". Three quick questions so that “Today” fits your life." }) : null,
       h("h2", { "class": "a-h3", text: "1 · Your goal" }), goalHost, examBox,
       h("h2", { "class": "a-h3", text: "2 · Your interests (up to 8)" }), intHost,
       h("h2", { "class": "a-h3", text: "3 · Minutes per day" }), minHost, err, save]));
