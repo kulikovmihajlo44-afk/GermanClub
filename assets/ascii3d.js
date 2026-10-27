@@ -89,10 +89,98 @@
     return clouds[key];
   }
 
+  // ---------- models built from primitives (box, sphere, frustum / cone / cylinder, torus) ----------
+  // A part: { b: [w, h, d] } | { s: r } | { c: [rBottom, rTop, h], open } | { t: [R, r, arc] }, plus at: [x, y, z],
+  // rot: [rx, ry, rz] (radians), w: brightness 0..1, bands: n (darker rings along y), grid: [lat, lon] (sphere lines).
+  // Every sampled point keeps its surface normal, so models are lit and depth-tested like the avatars.
+  var MODELS = {};
+  function define(name, parts, density) { MODELS[name] = { parts: parts, d: density || 52 }; }
+  function buildModel(parts, D) {
+    var P = [], TAU = Math.PI * 2;                                 // D: points per unit of length (52 suits a card)
+    function rot(v, r) {
+      var x = v[0], y = v[1], z = v[2], c, s2, t;
+      if (r[0]) { c = Math.cos(r[0]); s2 = Math.sin(r[0]); t = y * c - z * s2; z = y * s2 + z * c; y = t; }
+      if (r[1]) { c = Math.cos(r[1]); s2 = Math.sin(r[1]); t = x * c + z * s2; z = -x * s2 + z * c; x = t; }
+      if (r[2]) { c = Math.cos(r[2]); s2 = Math.sin(r[2]); t = x * c - y * s2; y = x * s2 + y * c; x = t; }
+      return [x, y, z];
+    }
+    parts.forEach(function (pt) {
+      var at = pt.at || [0, 0, 0], r = pt.rot || [0, 0, 0], w0 = pt.w === undefined ? 1 : pt.w;
+      function put(x, y, z, nx, ny, nz, w) {
+        var p = rot([x, y, z], r), n = rot([nx, ny, nz], r);
+        P.push(p[0] + at[0], p[1] + at[1], p[2] + at[2], w0 * (w === undefined ? 1 : w), n[0], n[1], n[2], 0);
+      }
+      var i, j, a, b, n1, n2;
+      if (pt.b) {
+        var hw = pt.b[0] / 2, hh = pt.b[1] / 2, hd = pt.b[2] / 2;
+        [[0, hw, 1, 2, hh, hd], [1, hh, 0, 2, hw, hd], [2, hd, 0, 1, hw, hh]].forEach(function (f) {
+          n1 = Math.max(2, Math.ceil(f[4] * 2 * D)); n2 = Math.max(2, Math.ceil(f[5] * 2 * D));
+          [-1, 1].forEach(function (sg) {
+            for (i = 0; i <= n1; i++) for (j = 0; j <= n2; j++) {
+              var v = [0, 0, 0], nn = [0, 0, 0];
+              v[f[0]] = sg * f[1]; v[f[2]] = (i / n1 * 2 - 1) * f[4]; v[f[3]] = (j / n2 * 2 - 1) * f[5]; nn[f[0]] = sg;
+              var edge = (i === 0 || i === n1) || (j === 0 || j === n2);
+              put(v[0], v[1], v[2], nn[0], nn[1], nn[2], edge ? 1 : 0.88);
+            }
+          });
+        });
+      } else if (pt.s) {
+        var R = pt.s, cnt = Math.ceil(4 * Math.PI * R * R * D * D * 0.9), ga = Math.PI * (3 - Math.sqrt(5)), g = pt.grid;
+        for (i = 0; i < cnt; i++) {
+          var yy = 1 - (i / (cnt - 1)) * 2, rr = Math.sqrt(1 - yy * yy), th = ga * i, x = Math.cos(th) * rr, z = Math.sin(th) * rr, w = 1;
+          if (g) { var lat = Math.asin(yy) * 180 / Math.PI + 90, lon = Math.atan2(z, x) * 180 / Math.PI + 180;
+            if (lat % (180 / g[0]) < 180 / g[0] * 0.12 || lon % (360 / g[1]) < 360 / g[1] * 0.12) w = 0.45; }
+          put(x * R, yy * R, z * R, x, yy, z, w);
+        }
+      } else if (pt.c) {
+        var r0 = pt.c[0], r1 = pt.c[1], hgt = pt.c[2], slope = (r0 - r1) / hgt, bands = pt.bands;
+        n2 = Math.max(2, Math.ceil(Math.hypot(hgt, r0 - r1) * D));
+        for (j = 0; j <= n2; j++) {
+          var k = j / n2, ry = -hgt / 2 + k * hgt, rad = r0 + (r1 - r0) * k;
+          n1 = Math.max(6, Math.ceil(TAU * Math.max(rad, 0.01) * D));
+          var band = bands && (Math.floor(k * bands * 2) % 2 === 1) ? 0.55 : 1;
+          for (i = 0; i < n1; i++) { a = i / n1 * TAU; var nl = Math.hypot(1, slope); put(Math.cos(a) * rad, ry, Math.sin(a) * rad, Math.cos(a) / nl, slope / nl, Math.sin(a) / nl, band); }
+        }
+        [[-hgt / 2, r0, -1], [hgt / 2, r1, 1]].forEach(function (cap) {
+          if (cap[1] < 0.01 || (pt.open && cap[2] > 0)) return;
+          n1 = Math.max(2, Math.ceil(cap[1] * D));
+          for (j = 1; j <= n1; j++) { var cr = cap[1] * j / n1, m = Math.max(6, Math.ceil(TAU * cr * D)); for (i = 0; i < m; i++) { a = i / m * TAU; put(Math.cos(a) * cr, cap[0], Math.sin(a) * cr, 0, cap[2], 0, 0.95); } }
+        });
+      } else if (pt.t) {
+        var TR = pt.t[0], tr = pt.t[1], arc = pt.t[2] || TAU;
+        n1 = Math.ceil(arc * TR * D); n2 = Math.max(8, Math.ceil(TAU * tr * D));
+        for (i = 0; i <= n1; i++) for (j = 0; j < n2; j++) {
+          var u = i / n1 * arc, vv = j / n2 * TAU, cu = Math.cos(u), su = Math.sin(u), cv = Math.cos(vv), sv = Math.sin(vv);
+          put((TR + tr * cv) * cu, tr * sv, (TR + tr * cv) * su, cv * cu, sv, cv * su);
+        }
+      }
+    });
+    // centre the model and scale its largest side to 1.9 units
+    var lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9], q;
+    for (q = 0; q < P.length; q += 8) for (var d = 0; d < 3; d++) { if (P[q + d] < lo[d]) lo[d] = P[q + d]; if (P[q + d] > hi[d]) hi[d] = P[q + d]; }
+    var span = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1, sc = 1.9 / span;
+    var mid = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+    for (q = 0; q < P.length; q += 8) for (d = 0; d < 3; d++) P[q + d] = (P[q + d] - mid[d]) * sc;
+    var pts = new Float32Array(P);
+    return { pts: pts, count: pts.length / 8, h: (hi[1] - lo[1]) * sc, stride: 8, lit: true };
+  }
+
+  // Berliner Fernsehturm — proportions after the reference: 368 m in all, sphere Ø 32 m at about 200–207 m,
+  // shaft tapering from 16 m to 9 m below the sphere, 118 m antenna on top (1 unit = 184 m, ground at y = -1)
+  define("fernsehturm", [
+    { c: [0.30, 0.20, 0.05], at: [0, -0.975, 0], w: 0.8 },                        // folded-roof pavilion around the foot
+    { c: [0.0435, 0.0245, 1.12], at: [0, -0.44, 0], bands: 5 },                   // concrete shaft, five stages
+    { s: 0.1, at: [0, 0.125, 0], grid: [6, 14] },                                  // the sphere and its facets (a touch larger, so it reads at small sizes)
+    { c: [0.1025, 0.1025, 0.024], at: [0, 0.14, 0], open: true, w: 0.35 },        // window band of the panorama floor
+    { c: [0.022, 0.018, 0.15], at: [0, 0.285, 0] },                               // upper shaft
+    { c: [0.013, 0.006, 0.64], at: [0, 0.68, 0], bands: 7 }                       // antenna (red and white bands)
+  ], 150);
+
   // ---------- procedural shapes for the avatars: points carry surface normals and are lit + depth-tested ----------
   function shapeCloud(name) {
     var key = "shape|" + name;
     if (clouds[key]) return clouds[key];
+    if (MODELS[name]) { clouds[key] = Promise.resolve(buildModel(MODELS[name].parts, MODELS[name].d)); return clouds[key]; }
     var P = [], TAU = Math.PI * 2;
     function add(x, y, z, w, nx, ny, nz) { P.push(x, y, z, w, nx, ny, nz, 0); }
     if (name === "ring") {                                          // torus ("Ring"), a nod to donut.c
@@ -138,7 +226,7 @@
     this.fps = parseFloat(ds.fps) || (lowPower ? 20 : 30);
     this.floor = ds.floor === "1";
     this.visible = false; this.shown = 0; this.last = 0; this.frames = 0; this.fpsT = 0;
-    this.shape = ds.shape || ""; this.basePitch = this.pitch;
+    this.shape = ds.shape || ""; this.basePitch = this.pitch; this.wobble = ds.wobble !== undefined ? parseFloat(ds.wobble) : 0.35;
     this.drag = null; this.cloud = null; this.vp = el.closest(".viewport, .lm, [data-stats]");
     var self = this;
     (this.shape ? shapeCloud(this.shape) : cloudFor(ds.src, this.res, this.floor)).then(function (c) { self.cloud = c; self.measure(); self.draw(performance.now(), true); }, function () {});
@@ -178,7 +266,7 @@
     this.last = now;
     if (!reduce && !this.drag) {
       this.phase += Math.abs(this.speed) * dt;
-      if (this.shape) { this.yaw += this.speed * dt; this.pitch = this.basePitch + Math.sin(this.phase * 0.7) * 0.35; }   // avatars spin
+      if (this.shape) { this.yaw += this.speed * dt; this.pitch = this.basePitch + Math.sin(this.phase * 0.7) * this.wobble; }   // avatars spin
       else this.yaw = this.center + Math.sin(this.phase) * 0.6 * (this.speed < 0 ? -1 : 1);                               // landmarks sway
     }
     if (!this.shown && this.visible) this.shown = now;
@@ -266,7 +354,7 @@
     kick();
     return inst;
   }
-  window.DKAscii = { mount: mount, reduce: reduce };
+  window.DKAscii = { mount: mount, define: define, has: function (n) { return !!MODELS[n]; }, reduce: reduce };
   function init() {
     var els = document.querySelectorAll("pre.ascii[data-src], pre.ascii[data-shape]");
     io = "IntersectionObserver" in window ? new IntersectionObserver(function (en) {

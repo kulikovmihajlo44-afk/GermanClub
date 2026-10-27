@@ -238,7 +238,7 @@ h1 em, h2 em { font-style: normal; color: var(--faint); }
 .what-list span { color: var(--muted); font-size: 0.95rem; }
 .what-list a { font-family: var(--mono); font-size: 0.74rem; text-decoration: none; color: var(--ink); white-space: nowrap; }
 .what-list a:hover { text-decoration: underline; }
-.what-art .ascii { height: clamp(320px, 42vw, 520px); }
+.what-art .ascii { height: clamp(380px, 48vw, 640px); -webkit-mask-image: linear-gradient(transparent, #000 8%, #000 90%, transparent); mask-image: linear-gradient(transparent, #000 8%, #000 90%, transparent); }
 
 /* levels: one interactive scale */
 .scale { margin-top: 2.6rem; }

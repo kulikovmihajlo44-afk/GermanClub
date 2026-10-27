@@ -37,6 +37,14 @@ async function signup(name, email) { const r = await call(apply, { body: { fulln
   r = await A('avatar', { cookie: mia, body: { avatar: 'ring' }, origin: 'https://evil.test' }); assert.strictEqual(r.code, 403); ok('cross-origin request refused (403)');
   r = await A('state', { cookie: tom }); assert.strictEqual(r.body.profile.avatar, null); ok("one member's avatar does not touch another's");
   r = await A('export', { cookie: mia }); assert.strictEqual(r.body.profile.avatar, 'wuerfel'); ok('the avatar is part of the data export');
-  console.log(`\nAvatar: ${passed} checks passed`);
+
+  console.log('Name on the card');
+  r = await A('name', { cookie: mia, body: { name: '  Mia Schulz ' } }); assert.strictEqual(r.code, 200);
+  r = await A('state', { cookie: mia }); assert.strictEqual(r.body.user.full_name, 'Mia Schulz'); ok('the name can be changed (trimmed)');
+  r = await A('name', { cookie: mia, body: { name: '=HYPERLINK("x")' } }); r = await A('state', { cookie: mia }); assert.ok(!r.body.user.full_name.startsWith('=')); ok('formula characters at the start are removed, as at sign-up');
+  r = await A('name', { cookie: mia, body: { name: ' ' } }); assert.strictEqual(r.code, 400); ok('an empty name is refused (400)');
+  r = await A('name', { body: { name: 'Eve' } }); assert.strictEqual(r.code, 401);
+  r = await A('state', { cookie: tom }); assert.strictEqual(r.body.user.full_name, 'Tom'); ok("logged-out requests are refused and other members are untouched");
+  console.log(`\nAvatar + name: ${passed} checks passed`);
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });

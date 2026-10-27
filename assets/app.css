@@ -252,3 +252,103 @@ dialog.mc-dialog { width: min(420px, calc(100vw - 1.5rem)); max-height: calc(100
 }
 @media (max-width: 520px) { .d-stat { padding: 0.8rem; } }
 @media (prefers-reduced-motion: reduce) { .mc-scene.intro .mcard, .d-track i, .d-today .a-item, .d-side { animation: none !important; } }
+
+/* ---- cards: 3D flip cards with live ASCII associations ---- */
+.fc { position: relative; width: 100%; max-width: 580px; aspect-ratio: 1.5; margin: 0 auto; perspective: 1400px; cursor: pointer; z-index: 2; }
+.fc-inner { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(var(--rx, 0deg)) rotateY(calc(var(--flip, 0deg) + var(--ry, 0deg))); transition: transform 0.85s cubic-bezier(0.3, 1.25, 0.4, 1); }
+.fc.flipped { --flip: 180deg; }
+.fc-face {
+  position: absolute; inset: 0; border-radius: 20px; border: 1px solid var(--hairline); overflow: hidden;
+  background: radial-gradient(120% 90% at 15% 0%, rgba(var(--ink-rgb), 0.06), transparent 55%), var(--surface);
+  background-image: radial-gradient(120% 90% at 15% 0%, rgba(var(--ink-rgb), 0.06), transparent 55%), linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: auto, 24px 24px, 24px 24px;
+  box-shadow: 0 40px 80px -45px rgba(var(--ink-rgb), 0.5); backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.fc-front { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem; padding: 1.4rem; text-align: center; }
+.fc-tag { position: absolute; top: 1rem; left: 1.1rem; font-family: var(--mono); font-size: 0.68rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.fc-word { font-size: clamp(2.2rem, 7vw, 3.8rem); font-weight: 600; letter-spacing: -0.045em; line-height: 1.05; }
+.fc-hint { position: absolute; bottom: 1rem; font-family: var(--mono); font-size: 0.68rem; color: var(--faint); }
+.fc-back { transform: rotateY(180deg); display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 0.5rem; padding: 1rem 1.4rem 1rem 0.6rem; }
+.fc-obj { position: relative; height: 100%; min-height: 160px; }
+.fc-obj .ascii { position: absolute; inset: 0; }
+.fc-meaning { display: grid; gap: 0.45rem; }
+.fc-small { font-family: var(--mono); font-size: 0.74rem; color: var(--faint); }
+.fc-ans { font-size: clamp(1.4rem, 3.6vw, 2rem); font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; }
+.fc-ex { color: var(--muted); font-size: 0.95rem; border-left: 2px solid var(--hairline); padding-left: 0.7rem; }
+.fc.in { animation: fcIn 0.65s var(--ease) both; }
+.fc.out-l { animation: fcOutL 0.42s var(--ease) forwards; }
+.fc.out-r { animation: fcOutR 0.42s var(--ease) forwards; }
+@keyframes fcIn { from { opacity: 0; transform: translateY(26px) scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes fcOutL { to { opacity: 0; transform: translateX(-70%) rotate(-9deg); } }
+@keyframes fcOutR { to { opacity: 0; transform: translateX(70%) rotate(9deg); } }
+
+/* the stack behind the active card */
+.fc-stage { position: relative; display: grid; place-items: center; padding: 1rem 0 2.2rem; }
+.fc-stage > .fc { grid-area: 1 / 1; }
+.fc-ghost { grid-area: 1 / 1; align-self: start; width: 100%; max-width: 580px; aspect-ratio: 1.5; margin-top: 1rem; border-radius: 20px; border: 1px solid var(--hairline-soft); background: var(--surface); }
+.fc-ghost.g1 { transform: translateY(14px) scale(0.955); opacity: 0.7; }
+.fc-ghost.g2 { transform: translateY(28px) scale(0.91); opacity: 0.4; }
+
+/* review page */
+.fc-review { max-width: 760px; }
+.fc-top { display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center; margin-bottom: 1.6rem; }
+.fc-top .a-back { margin: 0; }
+.fc-prog { height: 3px; border-radius: 3px; background: var(--hairline-soft); overflow: hidden; }
+.fc-prog i { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.6s var(--ease); }
+.fc-count { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); }
+.fc-controls { display: grid; justify-items: center; min-height: 92px; }
+.fc-flip { animation: routeIn 0.5s var(--ease) both; }
+.fc-flip kbd, .fc-rate kbd { font-family: var(--mono); font-size: 0.66rem; border: 1px solid var(--hairline); border-radius: 5px; padding: 0.05rem 0.35rem; color: var(--faint); margin-left: 0.4rem; }
+.fc-rates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; width: 100%; max-width: 580px; }
+.fc-rate { display: grid; gap: 0.15rem; justify-items: center; padding: 0.8rem 0.4rem; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit;
+  animation: routeIn 0.5s var(--ease) both; animation-delay: calc(var(--i) * 0.06s); transition: border-color 0.2s ease, transform 0.3s var(--ease); }
+.fc-rate:hover { border-color: var(--ink); transform: translateY(-2px); }
+.fc-rate strong { font-weight: 600; } .fc-rate span { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.fc-rate.r1 strong { color: var(--danger); }
+.fc-done { grid-area: 1 / 1; text-align: center; display: grid; justify-items: center; gap: 0.6rem; animation: routeIn 0.7s var(--ease) both; }
+.fc-done-obj { position: relative; width: 260px; height: 170px; }
+.fc-done-obj .ascii { position: absolute; inset: 0; }
+
+/* cards home */
+.fc-home { display: grid; grid-template-columns: 1fr 1.1fr; gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
+.fc-stats { margin: 1.6rem 0 1.4rem; }
+.fc-cta { margin-top: 0.2rem; }
+.fc-show { padding-top: 0; }
+.fc-decks { display: grid; gap: 0.8rem; }
+.fc-deck { display: grid; grid-template-columns: 70px 1fr auto; gap: 1.2rem; align-items: center; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface); padding: 1rem 1.2rem; transition: border-color 0.2s ease; }
+.fc-deck:hover { border-color: var(--ink); }
+.fc-deck strong { display: block; font-weight: 600; } .fc-deck span { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.fc-deck .btn-solid, .fc-deck .btn-line { margin: 0; white-space: nowrap; }
+.fc-deck-pile { position: relative; width: 56px; height: 40px; }
+.fc-deck-pile i { position: absolute; inset: 0; border: 1px solid var(--hairline); border-radius: 7px; background: var(--bg); transition: transform 0.4s var(--ease); }
+.fc-deck-pile i:nth-child(1) { transform: rotate(-9deg) translate(-3px, 2px); }
+.fc-deck-pile i:nth-child(2) { transform: rotate(5deg) translate(3px, 1px); }
+.fc-deck-pile i:nth-child(3) { display: grid; place-items: center; font-family: var(--mono); font-size: 0.7rem; font-style: normal; border-color: var(--ink); }
+.fc-deck:hover .fc-deck-pile i:nth-child(1) { transform: rotate(-16deg) translate(-8px, 3px); }
+.fc-deck:hover .fc-deck-pile i:nth-child(2) { transform: rotate(12deg) translate(8px, 1px); }
+
+@media (max-width: 960px) { .fc-home { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .fc { aspect-ratio: 0.82; } .fc-ghost { aspect-ratio: 0.82; }
+  .fc-back { grid-template-columns: 1fr; grid-template-rows: 1fr auto; padding: 1rem 1.2rem 1.3rem; }
+  .fc-obj { min-height: 170px; }
+  .fc-rates { grid-template-columns: repeat(2, 1fr); }
+  .fc-deck { grid-template-columns: 56px 1fr; } .fc-deck > button { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .fc-inner { transition: none; } }
+
+/* ---- member card: clickable on the dashboard, its own page at /app/card ---- */
+.mcard.is-link { cursor: pointer; }
+.mcard.is-link:hover .mc-face { border-color: var(--ink); }
+.mcard.is-link:focus-visible { outline: none; } .mcard.is-link:focus-visible .mc-face { outline: 2px solid var(--ink); outline-offset: 3px; }
+.mc-scene.enter .mcard { animation: cardEnter 1s var(--ease) both; }
+@keyframes cardEnter { from { opacity: 0; transform: translateX(-40px) rotateY(-35deg) scale(0.9); } to { opacity: 1; transform: none; } }
+.mc-page { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: clamp(2rem, 5vw, 4.5rem); align-items: start; }
+.mc-page-card { position: sticky; top: 6rem; display: grid; justify-items: center; gap: 0.9rem; text-align: center; }
+.mc-page-card .mc-scene { max-width: 380px; }
+.mc-page-form .a-h3 { margin: 1.6rem 0 0.7rem; }
+.mc-page-form .av-opts { max-width: 420px; }
+.mc-page-form .a-field input { max-width: 420px; }
+.mc-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1.4rem; }
+.mc-actions .btn-solid { margin: 0; }
+@media (max-width: 960px) { .mc-page { grid-template-columns: 1fr; } .mc-page-card { position: static; } .mc-page-card .mc-scene { max-width: 320px; } }

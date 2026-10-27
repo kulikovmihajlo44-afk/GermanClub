@@ -98,25 +98,91 @@
     show();
   }
 
+  // ---------------- Cards: one 3D flip card (front: the German word; back: a live 3D association + meaning) ----------------
+  var REDUCE = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var FINE = window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches;
+  function flashCard(c, opts) {
+    opts = opts || {};
+    var objHost = h("div", { "class": "fc-obj", "aria-hidden": "true" });
+    var front = h("div", { "class": "fc-face fc-front" }, [
+      h("span", { "class": "fc-tag", text: opts.tag || "deutsch" }),
+      h("p", { "class": "fc-word", lang: "de", text: c.front }),
+      h("span", { "class": "fc-hint", text: opts.hint || "tap to flip" })]);
+    var back = h("div", { "class": "fc-face fc-back" }, [objHost, h("div", { "class": "fc-meaning" }, [
+      h("p", { "class": "fc-small", lang: "de", text: c.front }),
+      h("p", { "class": "fc-ans", text: c.back }),
+      c.example ? h("p", { "class": "fc-ex", lang: "de", text: c.example }) : null])]);
+    var inner = h("div", { "class": "fc-inner" }, [front, back]);
+    var el = h("div", { "class": "fc" + (opts.enter && !REDUCE ? " in" : "") }, [inner]);
+    el.flipped = false;
+    el.flip = function (on) {
+      el.flipped = on === undefined ? !el.flipped : on;
+      el.classList.toggle("flipped", el.flipped);
+      if (el.flipped && !objHost.firstChild) {                     // the object scans in the moment the back turns up
+        var pre = h("pre", { "class": "ascii", "data-shape": window.DKAssoc ? DKAssoc.name(c.front) : "wuerfel", "data-size": String(opts.size || 6), "data-speed": "0.8", "data-pitch": "0.35", "data-wobble": "0.2" });
+        objHost.appendChild(pre);
+        setTimeout(function () { if (window.DKAscii && pre.isConnected) DKAscii.mount(pre); }, REDUCE ? 0 : 250);
+      }
+    };
+    if (FINE && !REDUCE) {
+      var raf = 0, ev = null;
+      el.addEventListener("pointermove", function (e) { ev = e; if (raf) return; raf = requestAnimationFrame(function () {
+        raf = 0; var r = el.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
+        el.style.setProperty("--ry", ((x - 0.5) * 10).toFixed(2) + "deg"); el.style.setProperty("--rx", ((0.5 - y) * 8).toFixed(2) + "deg"); }); });
+      el.addEventListener("pointerleave", function () { el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg"); });
+    }
+    return el;
+  }
+  function leave(el, dir, done) {
+    if (REDUCE) { el.remove(); return done(); }
+    el.classList.remove("in"); el.classList.add(dir < 0 ? "out-l" : "out-r");
+    setTimeout(function () { el.remove(); done(); }, 420);
+  }
+
   // ---------------- Cards: home ----------------
   DKA.route(/^\/app\/cards$/, function (root) {
     return DKA.json("/content/decks.json").then(function (decks) {
-      var c = DKA.state.cards, have = {}; c.decks.forEach(function (d) { have[d.deck] = d.n; });
-      var status = h("p", { "class": "a-muted", text: c.total ? c.total + " card" + (c.total === 1 ? "" : "s") + " in total · " + c.due + " due now" : "You have no cards yet." });
-      root.appendChild(h("div", { "class": "a-wrap" }, [].concat(pageHead("Cards", "Your cards", "Spaced repetition (FSRS): you rate each card Again, Hard, Good or Easy, and the app schedules the next review. Target retention 90%."), [
-        status,
-        c.due > 0 ? DKA.link("/app/cards/review", "Start review (" + c.due + ")", "btn-solid") : (c.total ? h("p", { "class": "a-muted a-small", text: "Nothing is due right now. New cards are limited to 10 per day so reviews stay manageable." }) : null),
-        h("h2", { "class": "a-h2", text: "Decks" }),
-        h("div", { "class": "a-today" }, decks.map(function (d) {
-          var n = have[d.id], btn = h("button", { type: "button", "class": n ? "btn-line" : "btn-solid", text: n ? "Added ✓" : "Add to my cards", disabled: !!n, onclick: function () {
-            btn.disabled = true; btn.textContent = "Adding…";
-            DKA.json(d.file).then(function (deck) { return DK.api("/api/app?a=cards.add", { deck: deck.id, source: "deck", cards: deck.cards }); }).then(function (r) {
-              if (r.status === 200 && r.j.ok) { return DKA.refresh().then(function () { DK.toast(r.j.added + " cards added"); DKA.nav("/app/cards", true); }); }
-              btn.disabled = false; btn.textContent = "Add to my cards"; DK.toast("Could not add — try again");
-            }).catch(function () { btn.disabled = false; btn.textContent = "Add to my cards"; DK.toast("No connection"); }); } });
-          return h("div", { "class": "a-item static" }, [h("div", null, [h("strong", { text: d.title }), h("span", { text: d.level + " · " + d.count + " cards" })]), btn]);
-        })),
-        h("p", { "class": "a-muted a-small", text: "Words from lessons are added from the lesson page." })])));
+      return (decks[0] ? DKA.json(decks[0].file) : Promise.resolve({ cards: [] })).then(function (first) {
+        var c = DKA.state.cards, have = {}; c.decks.forEach(function (d) { have[d.deck] = d.n; });
+        var stats = h("div", { "class": "d-stats fc-stats" }, [[c.due, "due now"], [c.total, "in your decks"], [10, "new per day"]].map(function (x) {
+          return h("div", { "class": "d-stat" }, [h("b", { text: String(x[0]) }), h("span", { text: x[1] })]); }));
+        // showcase: a stack whose top card flips by itself and walks through the deck
+        var stage = h("div", { "class": "fc-stage fc-show" }, [h("div", { "class": "fc-ghost g2" }), h("div", { "class": "fc-ghost g1" })]);
+        var words = (first.cards || []).slice(), wi = 0, cur = null, timer = 0;
+        function nextShow() {
+          if (!words.length || !stage.isConnected) return;
+          var card = flashCard(words[wi % words.length], { enter: true, size: 5, tag: "preview", hint: "your deck" }); wi++;
+          card.addEventListener("click", function () { card.flip(); });
+          stage.appendChild(card); cur = card;
+          if (REDUCE) return;
+          timer = setTimeout(function () { card.flip(true);
+            timer = setTimeout(function () { leave(card, -1, nextShow); }, 3600); }, 1600);
+        }
+        root.appendChild(h("div", { "class": "a-wrap" }, [
+          h("div", { "class": "fc-home" }, [
+            h("div", { "class": "fc-home-copy" }, [
+              h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Cards"]),
+              h("h1", { "class": "a-h1", text: "Flip. Recall. Rate." }),
+              h("p", { "class": "a-muted", text: "Every word has a 3D association on its back. FSRS brings each card back right before you would forget it." }),
+              stats,
+              c.due > 0 ? DKA.link("/app/cards/review", "Start review · " + c.due, "btn-solid fc-cta")
+                : h("p", { "class": "a-muted a-small", text: c.total ? "Nothing is due right now — new cards are limited to 10 a day." : "Add a deck below to start." })]),
+            stage]),
+          h("h2", { "class": "a-h2", text: "Decks" }),
+          h("div", { "class": "fc-decks" }, decks.map(function (d) {
+            var n = have[d.id], btn = h("button", { type: "button", "class": n ? "btn-line" : "btn-solid", text: n ? "Added ✓" : "Add to my cards", disabled: !!n, onclick: function () {
+              btn.disabled = true; btn.textContent = "Adding…";
+              DKA.json(d.file).then(function (deck) { return DK.api("/api/app?a=cards.add", { deck: deck.id, source: "deck", cards: deck.cards }); }).then(function (r) {
+                if (r.status === 200 && r.j.ok) { return DKA.refresh().then(function () { DK.toast(r.j.added + " cards added"); DKA.nav("/app/cards", true); }); }
+                btn.disabled = false; btn.textContent = "Add to my cards"; DK.toast("Could not add — try again");
+              }).catch(function () { btn.disabled = false; btn.textContent = "Add to my cards"; DK.toast("No connection"); }); } });
+            return h("div", { "class": "fc-deck" }, [h("div", { "class": "fc-deck-pile", "aria-hidden": "true" }, [h("i"), h("i"), h("i", { text: d.level })]),
+              h("div", null, [h("strong", { text: d.title }), h("span", { text: d.count + " cards · " + d.level + (n ? " · " + n + " in your cards" : "") })]), btn]);
+          })),
+          h("p", { "class": "a-muted a-small", text: "Words from lessons are added from the lesson page." })]));
+        nextShow();
+        window.addEventListener("popstate", function () { clearTimeout(timer); }, { once: true });
+      });
     });
   });
 
@@ -124,45 +190,66 @@
   DKA.route(/^\/app\/cards\/review$/, function (root) {
     return DK.api("/api/app?a=cards.due").then(function (res) {
       if (res.status !== 200 || !res.j.ok) throw new Error("due");
-      var queue = res.j.queue.slice(), total = queue.length, answered = 0, host = h("div", { "class": "a-wrap a-narrow" });
+      var queue = res.j.queue.slice(), total = queue.length, answered = 0;
+      var bar = h("div", { "class": "fc-prog" }, [h("i")]), count = h("span", { "class": "fc-count" });
+      var stage = h("div", { "class": "fc-stage" }, [h("div", { "class": "fc-ghost g2" }), h("div", { "class": "fc-ghost g1" })]);
+      var controls = h("div", { "class": "fc-controls" });
+      var host = h("div", { "class": "a-wrap fc-review" }, [h("div", { "class": "fc-top" }, [DKA.link("/app/cards", "← Exit", "a-back"), bar, count]), stage, controls]);
       root.appendChild(host);
+      var card = null, busy = false;
+      function progress() {
+        var done = total ? Math.min(1, answered / Math.max(total, answered + queue.length)) : 1;
+        bar.firstChild.style.width = (done * 100).toFixed(1) + "%";
+        count.textContent = answered + " / " + (answered + queue.length);
+      }
       function endScreen() {
-        host.innerHTML = "";
-        host.appendChild(h("div", { "class": "a-card a-empty" }, [h("h1", { "class": "a-h1", text: total ? "Done for now" : "Nothing to review" }),
-          h("p", { "class": "a-muted", text: total ? "You reviewed " + answered + " card" + (answered === 1 ? "" : "s") + ". Cards that are still being learned come back later today, when they are due." : "No cards are due. Add a deck or a lesson’s words, or come back later." }),
+        detach(); stage.innerHTML = ""; controls.innerHTML = ""; progress();
+        var shape = h("pre", { "class": "ascii", "data-shape": "ring", "data-size": "6", "data-speed": "1", "data-pitch": "0.9", "aria-hidden": "true" });
+        stage.appendChild(h("div", { "class": "fc-done" }, [h("div", { "class": "fc-done-obj" }, [shape]),
+          h("h1", { "class": "a-h1", text: total ? "Done for now." : "Nothing to review." }),
+          h("p", { "class": "a-muted", text: total ? "You reviewed " + answered + " card" + (answered === 1 ? "" : "s") + ". Cards you are still learning come back when they are due." : "No cards are due. Add a deck, or come back later." }),
           DKA.link("/app", "Back to Today", "btn-solid")]));
+        if (window.DKAscii) DKAscii.mount(shape);
         DKA.refresh();
       }
       function show() {
+        progress();
         if (!queue.length) return endScreen();
-        var c = queue[0], revealed = false;
-        host.innerHTML = "";
-        var back = h("div", { "class": "a-back-face", hidden: true }, [h("p", { "class": "a-answer", text: c.back }), c.example ? h("p", { "class": "a-ex", lang: "de", text: c.example }) : null]);
-        var reveal = h("button", { type: "button", "class": "btn-solid a-reveal", text: "Show answer (Space)", onclick: doReveal });
-        var rates = h("div", { "class": "a-rates", hidden: true }, [[1, "Again"], [2, "Hard"], [3, "Good"], [4, "Easy"]].map(function (r) {
-          return h("button", { type: "button", "class": "a-rate r" + r[0], "data-r": r[0], onclick: function () { rate(r[0]); } }, [h("strong", { text: r[1] }), h("span", { text: c.intervals[r[0]] }), h("kbd", { text: String(r[0]) })]); }));
-        function doReveal() { if (revealed) return; revealed = true; back.hidden = false; rates.hidden = false; reveal.hidden = true; }
-        var busy = false;
-        function rate(r) {
-          if (!revealed || busy) return; busy = true;
-          DK.api("/api/app?a=cards.review", { id: c.id, rating: r }).then(function (x) {
-            if (x.status !== 200 || !x.j.ok) { busy = false; DK.toast("Could not save — try again"); return; }
-            queue.shift(); answered++;
-            if (new Date(x.j.due).getTime() - Date.now() < 2 * 60000) { c.intervals = x.j.intervals; c.isNew = false; queue.push(c); }  // only "Again" (about 1 min) repeats in this session; everything else returns when it is due
-            detach(); show();
-          }).catch(function () { busy = false; DK.toast("No connection — try again"); });
-        }
-        function onKey(e) {
-          if (e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey) return;
-          if (e.key === " " || e.key === "Enter") { e.preventDefault(); doReveal(); } else if (/^[1-4]$/.test(e.key)) rate(Number(e.key));
-        }
-        function detach() { document.removeEventListener("keydown", onKey); }
-        document.addEventListener("keydown", onKey);
-        window.addEventListener("popstate", detach, { once: true });
-        host.appendChild(h("div", { "class": "a-rev-top" }, [DKA.link("/app/cards", "← Exit", "a-back"), h("span", { "class": "a-muted a-small", text: answered + " done · " + queue.length + " left" })]));
-        host.appendChild(h("div", { "class": "a-card a-flash" }, [c.isNew ? h("p", { "class": "a-label", text: "New card" }) : null, h("p", { "class": "a-front", lang: "de", text: c.front }), back]));
-        host.appendChild(reveal); host.appendChild(rates);
+        var c = queue[0];
+        card = flashCard(c, { enter: true, tag: c.isNew ? "new word" : "review", hint: "tap or press space" });
+        card.addEventListener("click", reveal);
+        stage.appendChild(card);
+        controls.innerHTML = "";
+        controls.appendChild(h("button", { type: "button", "class": "btn-ghost fc-flip", onclick: reveal }, ["Show answer ", h("kbd", { text: "space" })]));
+        busy = false;
       }
+      function reveal() {
+        if (!card || card.flipped || busy) return;
+        card.flip(true);
+        var c = queue[0];
+        controls.innerHTML = "";
+        controls.appendChild(h("div", { "class": "fc-rates" }, [[1, "Again"], [2, "Hard"], [3, "Good"], [4, "Easy"]].map(function (r, i) {
+          return h("button", { type: "button", "class": "fc-rate r" + r[0], style: "--i:" + i, onclick: function () { rate(r[0]); } }, [h("strong", { text: r[1] }), h("span", { text: c.intervals[r[0]] }), h("kbd", { text: String(r[0]) })]); })));
+      }
+      function rate(r) {
+        if (!card || !card.flipped || busy) return; busy = true;
+        var c = queue[0];
+        DK.api("/api/app?a=cards.review", { id: c.id, rating: r }).then(function (x) {
+          if (x.status !== 200 || !x.j.ok) { busy = false; DK.toast("Could not save — try again"); return; }
+          queue.shift(); answered++;
+          if (new Date(x.j.due).getTime() - Date.now() < 2 * 60000) { c.intervals = x.j.intervals; c.isNew = false; queue.push(c); }  // only "Again" (about 1 min) repeats in this session
+          controls.innerHTML = "";
+          leave(card, r === 1 ? -1 : 1, show);
+        }).catch(function () { busy = false; DK.toast("No connection — try again"); });
+      }
+      function onKey(e) {
+        if (e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey) return;
+        if (e.key === " " || e.key === "Enter") { e.preventDefault(); reveal(); } else if (/^[1-4]$/.test(e.key)) rate(Number(e.key));
+      }
+      function detach() { document.removeEventListener("keydown", onKey); }
+      document.addEventListener("keydown", onKey);
+      window.addEventListener("popstate", detach, { once: true });
+      host.querySelector(".a-back").addEventListener("click", detach);
       show();
     });
   });

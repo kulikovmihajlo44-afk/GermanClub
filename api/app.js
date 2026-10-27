@@ -6,6 +6,7 @@
 //   POST ?a=test.submit      {seq:[20 ids in the order asked], answers:{id:index|-1}}  -> {level, points, border, skills, score, total, saved}   (public; saved only when logged in)
 //   POST ?a=onboarding       {goal, interests[], minutes, exam_date?}
 //   POST ?a=avatar           {avatar: ring|kugel|wuerfel}  the picture on the member card
+//   POST ?a=name             {name}  the name on the member card (same rules as at sign-up)
 //   POST ?a=lesson.done      {topic, score, total}
 //   POST ?a=cards.add        {deck, source?, cards:[{front, back, example?}]}
 //   GET  ?a=cards.due        today's queue (learning/review cards due + up to NEW_PER_DAY new ones)
@@ -163,6 +164,13 @@ module.exports = H.handler(async (req, res) => {
     if (!AVATARS.includes(avatar)) return bad(res, 'Please choose one of the avatars.');
     await db.query(`UPDATE users SET avatar = $2 WHERE id = $1`, [uid, avatar]);
     return H.send(res, 200, { ok: true, profile: await profileOf(uid) });
+  }
+
+  if (a === 'name' && isPost) {
+    const name = str(body.name, 120).replace(/^[\s=+\-@]+/, '').trim();   // like sign-up: no spreadsheet formulas
+    if (name.length < 2) return bad(res, 'Please enter your name.');
+    await db.query(`UPDATE users SET full_name = $2 WHERE id = $1`, [uid, name]);
+    return H.send(res, 200, { ok: true, name });
   }
 
   if (a === 'lesson.done' && isPost) {

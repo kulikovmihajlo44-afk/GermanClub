@@ -182,7 +182,7 @@
       var stats = h("div", { "class": "d-stats" }, [
         [s.cards.due, "cards due now"], [s.lessons.length, "lessons finished"], [days === null ? "–" : days, days === null ? "no session planned" : days === 0 ? "club is today" : "days to the club"]
       ].map(function (x) { return h("div", { "class": "d-stat" }, [h("b", { "data-to": typeof x[0] === "number" ? String(x[0]) : null, text: String(x[0]) }), h("span", { text: x[1] })]); }));
-      var card = DKA.memberCard ? DKA.memberCard(s) : null;
+      var card = DKA.memberCard ? DKA.memberCard(s, { href: "/app/card" }) : null;
       root.appendChild(h("div", { "class": "a-wrap d-wrap" }, [
         h("div", { "class": "d-main" }, [
           h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Dashboard"]),
@@ -195,7 +195,7 @@
           today.length ? h("div", { "class": "a-today d-today" }, today.map(function (it, i) {
             return h("a", { "class": "a-item", href: it.href, "data-link": "", style: "--i:" + i }, [h("div", null, [h("strong", { text: it.t }), h("span", { text: it.sub })]), h("em", { text: it.cta + " →" })]);
           })) : h("div", { "class": "a-card" }, [h("p", { "class": "a-muted", text: "Nothing is due. You have finished every available lesson; new ones are on the way. Come back tomorrow for your cards." })])]),
-        card ? h("aside", { "class": "d-side" }, [card, h("button", { type: "button", "class": "d-avatar", text: "Change avatar", onclick: function () { DKA.cardReveal({ picker: true, onDone: function () { DKA.nav("/app", true); } }); } })]) : null]));
+        card ? h("aside", { "class": "d-side" }, [card]) : null]));
       // numbers count up once
       Array.prototype.forEach.call(root.querySelectorAll("[data-to]"), function (el) {
         var to = +el.getAttribute("data-to"), t0 = performance.now();
