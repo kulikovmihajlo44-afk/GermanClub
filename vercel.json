@@ -49,6 +49,17 @@
   ],
   "redirects": [
     {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "germanclub.vercel.app"
+        }
+      ],
+      "destination": "https://www.germanstudy.tech/:path*",
+      "permanent": true
+    },
+    {
       "source": "/portal",
       "destination": "/app",
       "permanent": false
