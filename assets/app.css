@@ -209,9 +209,9 @@ a.a-item:hover, .a-choice:hover, .t-opt:hover { transform: translateY(-2px); bor
 .mc-front::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(300px circle at var(--mx, 30%) var(--my, 0%), rgba(var(--ink-rgb), 0.07), transparent 60%); }
 .mc-back { transform: rotateY(180deg); display: grid; place-content: center; justify-items: center; gap: 1rem; font-family: var(--mono); font-size: 0.7rem; color: var(--faint);
   background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 16px 16px; }
-.mc-back .logo-mark { width: 64px; height: 52px; }
+.mc-back .logo-mark { width: 56px; height: 56px; }
 .mc-top { display: flex; align-items: center; gap: 0.5rem; font-family: var(--mono); font-size: 0.7rem; color: var(--ink-2); }
-.mc-top .logo-mark { width: 22px; height: 18px; }
+.mc-top .logo-mark { width: 18px; height: 18px; }
 .mc-kind { margin-left: auto; color: var(--faint); text-transform: uppercase; letter-spacing: 0.08em; }
 .mc-avatar { flex: 1; position: relative; min-height: 120px; margin: 0.4rem -0.4rem; }
 .mc-avatar .ascii { position: absolute; inset: 0; }

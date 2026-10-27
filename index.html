@@ -9,6 +9,7 @@
     try { if (localStorage.getItem("dk_in") === "1" && !/[?&](home|login)=/.test(location.search) && !location.hash) location.replace("/app"); } catch (e) {}
   </script>
   <meta name="theme-color" content="#fafafa">
+  <link rel="icon" href="/assets/img/favicon.svg?v=1" type="image/svg+xml">
   <script src="assets/theme.js"></script>
   <script src="assets/account.js" defer></script>
   <script src="assets/ascii3d.js" defer></script>
@@ -28,7 +29,7 @@
   <header class="nav" id="top">
     <div class="nav-inner">
       <a class="logo" href="#top">
-        <span class="logo-mark" aria-hidden="true"></span>
+        <svg class="logo-u" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 18V29A12 12 0 0 0 36 29V18" fill="none" stroke="currentColor" stroke-width="7"/><rect class="u-dot u-a" x="8.5" y="4" width="7" height="7" fill="currentColor"/><rect class="u-dot u-b" x="32.5" y="4" width="7" height="7" fill="currentColor"/></svg>
         <span class="logo-text">deutsch-klub</span>
       </a>
       <nav class="nav-links" aria-label="Main">

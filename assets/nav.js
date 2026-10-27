@@ -30,7 +30,7 @@
   function items(area) { return DK.MENU.filter(function (m) { return m.area === area && m.ready && (!m.adminOnly || DK.isAdmin); }); }
   function isActive(href, path) { return href === "/app" ? path === "/app" || path === "/app/" || path.indexOf("/app/onboarding") === 0 : path === href || path.indexOf(href + "/") === 0; }
 
-  var LOGO = '<a class="logo" href="/?home=1" aria-label="Deutsch-Klub — club website"><span class="logo-mark" aria-hidden="true"></span><span class="logo-text">Deutsch-Klub</span></a>';
+  var LOGO = '<a class="logo" href="/?home=1" aria-label="Deutsch-Klub — club website"><svg class="logo-u" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 18V29A12 12 0 0 0 36 29V18" fill="none" stroke="currentColor" stroke-width="7"/><rect class="u-dot u-a" x="8.5" y="4" width="7" height="7" fill="currentColor"/><rect class="u-dot u-b" x="32.5" y="4" width="7" height="7" fill="currentColor"/></svg><span class="logo-text">deutsch-klub</span></a>';
 
   // area: "public" | "member"
   DK.renderHeader = function (host, area, path) {
