@@ -31,6 +31,10 @@ body {
 
 img { display: block; max-width: 100%; }
 
+/* plain text links (footer, legal pages, app footer): no browser-default blue on black */
+a { color: inherit; text-underline-offset: 0.2em; }
+a:hover { color: var(--ink); }
+
 /* line-art renders are white-on-black: screen-blend drops the black */
 .hero-art img,
 .frame img,

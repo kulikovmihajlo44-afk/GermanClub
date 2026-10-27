@@ -81,7 +81,7 @@
       h("p", { "class": "a-muted", text: "There is no page at " + path + " (yet)." }), DKA.link("/app", "Back to my dashboard", "btn-solid")])]));
   }
   function markActive(path) {
-    document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : "My app");
+    document.title = "Deutsch-Klub — " + (path.indexOf("/learn") > -1 ? "Learn" : path.indexOf("/cards") > -1 ? "Cards" : path.indexOf("/club") > -1 ? "Club" : path.indexOf("/account") > -1 ? "Account" : path.indexOf("/admin") > -1 ? "Admin" : "My app");
     DK.renderHeaderActive && DK.renderHeaderActive(path);
     var all = document.querySelectorAll("#top .nav-link, #tabbar .tab[href]");
     for (var i = 0; i < all.length; i++) {
@@ -115,9 +115,13 @@
   };
   function start() {
     var s = DKA.state;
-    DK.mountMenu(document.getElementById("acct"), [
+    DK.isAdmin = !!s.user.is_admin;                                          // only IDs in ADMIN_IDS; the server re-checks every admin request
+    if (DK.isAdmin) DK.renderHeader(document.getElementById("top"), "member");   // header was drawn before we knew: add the Admin link
+    var menu = [
       { label: "Account", onClick: function () { DKA.nav("/app/account"); } },
-      { label: "Log out", danger: true, onClick: function () { DK.logout(); } }], s.user.full_name);
+      { label: "Log out", danger: true, onClick: function () { DK.logout(); } }];
+    if (DK.isAdmin) menu.splice(1, 0, { label: "Admin", onClick: function () { DKA.nav("/app/admin"); } });
+    DK.mountMenu(document.getElementById("acct"), menu, s.user.full_name);
     DK.renderTabbar(document.getElementById("tabbar"), location.pathname, function () { DK.logout(); });
     var go = function () {
       var p = new URLSearchParams(location.search);
@@ -154,7 +158,7 @@
       root.appendChild(h("div", { "class": "a-wrap a-narrow" }, [h("div", { "class": "a-card a-hero" }, [
         h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Welcome"]),
         h("h1", { "class": "a-h1", text: "Hello, " + s.user.full_name }),
-        h("p", { "class": "a-muted", text: "Start with a short placement test. It takes about 5 minutes and shows us where to begin." }),
+        h("p", { "class": "a-muted", text: "Start with a short placement test. It takes about 10 minutes and shows us where to begin." }),
         DKA.link("/test", "Take the placement test", "btn-solid")])]));
       return;
     }

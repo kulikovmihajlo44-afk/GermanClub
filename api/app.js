@@ -9,11 +9,14 @@
 //   POST ?a=cards.add        {deck, source?, cards:[{front, back, example?}]}
 //   GET  ?a=cards.due        today's queue (learning/review cards due + up to NEW_PER_DAY new ones)
 //   POST ?a=cards.review     {id, rating 1..4}
+//   GET  ?a=admin.users      (admins only) every member with goal, interests and latest placement result - for /app/admin
+//   POST ?a=admin.delete     (admins only) {id} removes a member and all their data
 //   GET  ?a=history          the member's own history     GET ?a=export   everything we store about the member
 const db = require('../lib/db');
 const H = require('../lib/http');
 const P = require('../lib/placement');
 const F = require('../lib/fsrs');
+const { formatId } = require('../lib/ids');
 
 const NEW_PER_DAY = 10;
 const GOALS = ['goethe', 'career', 'interest'];
@@ -85,6 +88,39 @@ module.exports = H.handler(async (req, res) => {
   const user = await H.currentUser(req);
   if (!user) { H.endSession(res); return H.send(res, 401, { ok: false }); }
   const uid = user.id;
+
+  // ---- admin window (/app/admin): only the IDs listed in ADMIN_IDS; everyone else gets 403 on every admin action
+  if (a.startsWith('admin.')) {
+    if (!H.isAdmin(uid)) return H.send(res, 403, { ok: false, error: 'Admins only' });
+    if (a === 'admin.users' && !isPost) {
+      const rows = await db.query(
+        `SELECT u.id, u.full_name, u.email, u.level, u.goal, u.interests, u.exam_date, u.created_at, u.last_login,
+                p.level AS p_level, p.score AS p_score, p.total AS p_total, p.taken_at AS p_taken_at
+           FROM users u
+           LEFT JOIN LATERAL (SELECT level, score, total, taken_at FROM placement_results
+                               WHERE user_id = u.id ORDER BY taken_at DESC, id DESC LIMIT 1) p ON true
+          ORDER BY u.created_at DESC LIMIT 2000`, []);
+      const day = (d) => d ? String(d.toISOString ? d.toISOString().slice(0, 10) : d).slice(0, 10) : null;
+      const users = rows.map((u) => ({
+        id: formatId(u.id), full_name: u.full_name, email: u.email, level: u.level,
+        goal: u.goal || null, interests: Array.isArray(u.interests) ? u.interests : [],
+        exam_date: u.goal === 'goethe' ? day(u.exam_date) : null,          // the exam date only matters for the Goethe goal
+        created_at: u.created_at, last_login: u.last_login,
+        placement: u.p_level ? { level: u.p_level, score: u.p_score, total: u.p_total, taken_at: u.p_taken_at } : null,
+        is_admin: H.isAdmin(u.id), is_me: u.id === uid }));
+      return H.send(res, 200, { ok: true, count: users.length, users });
+    }
+    if (a === 'admin.delete' && isPost) {
+      const target = String(body.id == null ? '' : body.id).replace(/\D/g, '');
+      if (!/^\d{12}$/.test(target)) return bad(res);
+      if (target === uid) return bad(res, 'You cannot delete your own account here (use Account instead).');
+      if (H.isAdmin(target)) return bad(res, 'Admins cannot be deleted here. Remove the ID from ADMIN_IDS first.');
+      const gone = await db.query('DELETE FROM users WHERE id = $1 RETURNING id', [target]);   // cards, reviews, lessons and test results go with it (ON DELETE CASCADE)
+      if (!gone.length) return H.send(res, 404, { ok: false, error: 'No such account' });
+      return H.send(res, 200, { ok: true, deleted: true });
+    }
+    return H.send(res, 404, { ok: false, error: 'Unknown action' });
+  }
 
   if (a === 'state' && !isPost) {
     const [profile, placement, lessons, cards] = await Promise.all([
