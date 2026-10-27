@@ -1,92 +1,111 @@
-// Deutsch-Klub — motion design for the landing page: scroll progress, staggered reveals, 3D tilt cards,
-// the rotating panorama ring of landmarks and a gentle hero parallax. No libraries; respects reduced motion.
+// Deutsch-Klub — motion design for the landing page: typed command line, staggered reveals, decoding labels,
+// counting metrics, scroll progress and a live countdown to the next session. No libraries; respects reduced motion.
 (function () {
   "use strict";
   var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var finePointer = window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches;
+  var GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/<>_-=+*#";
+  function each(sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); }
 
-  // ---------- reveal on scroll (children of [data-stagger] get increasing delays) ----------
-  var groups = document.querySelectorAll("[data-stagger]");
-  Array.prototype.forEach.call(groups, function (g) {
-    Array.prototype.forEach.call(g.children, function (el, i) { el.classList.add("reveal"); el.style.setProperty("--d", (i * 0.09).toFixed(2) + "s"); });
+  // ---------- typed command line in the hero ----------
+  each("[data-type]", function (el) {
+    var text = el.getAttribute("data-type");
+    if (reduce) { el.textContent = text; return; }
+    var i = 0; el.textContent = "";
+    (function step() { if (i <= text.length) { el.textContent = text.slice(0, i++); setTimeout(step, 28 + Math.random() * 40); } })();
   });
-  var reveals = document.querySelectorAll(".reveal");
+
+  // ---------- decode effect: random glyphs settle into the real text ----------
+  function scramble(el) {
+    var final = el.getAttribute("data-scramble") || el.textContent, start = performance.now(), dur = 700;
+    el.setAttribute("data-scramble", final);
+    if (reduce) { el.textContent = final; return; }
+    (function frame(now) {
+      var p = Math.min(1, (now - start) / dur), out = "";
+      for (var i = 0; i < final.length; i++) {
+        var ch = final[i];
+        out += ch === " " || i / final.length < p ? ch : GLYPHS[(Math.random() * GLYPHS.length) | 0];
+      }
+      el.textContent = out;
+      if (p < 1) requestAnimationFrame(frame);
+    })(start);
+  }
+
+  // ---------- count up ----------
+  function countUp(el) {
+    var to = parseFloat(el.getAttribute("data-count")), suffix = el.getAttribute("data-suffix") || "", start = performance.now(), dur = 1300;
+    if (reduce) { el.textContent = to + suffix; return; }
+    (function frame(now) {
+      var p = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(to * e) + suffix;
+      if (p < 1) requestAnimationFrame(frame);
+    })(start);
+  }
+
+  // ---------- reveal on scroll ----------
+  each("[data-stagger]", function (g) {
+    Array.prototype.forEach.call(g.children, function (el, i) { el.classList.add("reveal"); el.style.setProperty("--d", (i * 0.07).toFixed(2) + "s"); });
+  });
+  function onShow(el) {
+    el.classList.add("in");
+    if (el.hasAttribute("data-scramble")) scramble(el);
+    Array.prototype.forEach.call(el.querySelectorAll("[data-scramble]"), scramble);
+    Array.prototype.forEach.call(el.querySelectorAll("[data-count]"), countUp);
+    if (el.hasAttribute("data-count")) countUp(el);
+  }
+  var targets = document.querySelectorAll(".reveal, [data-scramble], [data-count]");
   if (reduce || !("IntersectionObserver" in window)) {
-    Array.prototype.forEach.call(reveals, function (el) { el.classList.add("in"); });
+    Array.prototype.forEach.call(targets, function (el) { el.classList.add("in"); });
+    each("[data-count]", function (el) { el.textContent = el.getAttribute("data-count") + (el.getAttribute("data-suffix") || ""); });
   } else {
     var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
-    }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
-    Array.prototype.forEach.call(reveals, function (el) { io.observe(el); });
-  }
-
-  // ---------- 3D tilt (desktop pointers only) ----------
-  if (!reduce && finePointer) {
-    Array.prototype.forEach.call(document.querySelectorAll(".tilt"), function (el) {
-      var max = parseFloat(el.getAttribute("data-tilt")) || 9, frame = 0, ev = null;
-      function apply() {
-        frame = 0; if (!ev) return;
-        var r = el.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
-        el.style.setProperty("--ry", ((x - 0.5) * 2 * max).toFixed(2) + "deg");
-        el.style.setProperty("--rx", ((0.5 - y) * 2 * max).toFixed(2) + "deg");
-        el.style.setProperty("--mx", (x * 100).toFixed(1) + "%");
-        el.style.setProperty("--my", (y * 100).toFixed(1) + "%");
-      }
-      el.addEventListener("pointerenter", function () { el.classList.add("is-tilting"); });
-      el.addEventListener("pointermove", function (e) { ev = e; if (!frame) frame = requestAnimationFrame(apply); });
-      el.addEventListener("pointerleave", function () {
-        ev = null; el.classList.remove("is-tilting");
-        el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg");
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        io.unobserve(e.target);
+        if (e.target.classList.contains("reveal")) onShow(e.target);
+        else if (!e.target.closest(".reveal")) { if (e.target.hasAttribute("data-count")) countUp(e.target); else scramble(e.target); }
       });
-    });
+    }, { threshold: 0.15, rootMargin: "0px 0px -5% 0px" });
+    Array.prototype.forEach.call(targets, function (el) { io.observe(el); });
   }
 
-  // ---------- panorama ring: landmarks on a slowly turning cylinder; scrolling turns it further ----------
-  var scene = document.querySelector(".ring-scene"), ring = scene && scene.querySelector(".ring");
-  if (ring) {
-    var panels = ring.querySelectorAll(".ring-panel"), n = panels.length, ringVisible = true, angle = 0, last = 0, ringRaf = 0;
-    var layout = function () {
-      var pw = Math.max(130, Math.min(230, scene.clientWidth * 0.21));
-      var r = (pw / 2) / Math.tan(Math.PI / n) * 1.04;
-      ring.style.setProperty("--pw", pw + "px");
-      Array.prototype.forEach.call(panels, function (p, i) {
-        p.style.setProperty("--a", (i * 360 / n) + "deg"); p.style.setProperty("--r", r + "px");
-      });
-    };
-    var spin = function (now) {
-      var dt = last ? Math.min(0.05, (now - last) / 1000) : 0; last = now;
-      angle -= dt * 7;                                         // 7 degrees per second
-      var rect = scene.getBoundingClientRect(), sp = (rect.top + rect.height / 2 - innerHeight / 2) / innerHeight;
-      ring.style.setProperty("--ring", (angle + sp * 60).toFixed(2) + "deg");
-      ringRaf = ringVisible && !document.hidden ? requestAnimationFrame(spin) : 0;
-    };
-    layout();
-    window.addEventListener("resize", layout);
-    if (reduce) { ring.style.setProperty("--ring", "-12deg"); }
-    else {
-      if ("IntersectionObserver" in window) {
-        new IntersectionObserver(function (en) {
-          ringVisible = en[0].isIntersecting;
-          if (ringVisible && !ringRaf) { last = 0; ringRaf = requestAnimationFrame(spin); }
-        }).observe(scene);
-      } else { ringRaf = requestAnimationFrame(spin); }
-      document.addEventListener("visibilitychange", function () { if (!document.hidden && ringVisible && !ringRaf) { last = 0; ringRaf = requestAnimationFrame(spin); } });
-    }
-  }
-
-  // ---------- scroll progress bar + hero parallax ----------
-  var bar = document.querySelector(".progress"), heroContent = document.querySelector(".hero-content"), hero = document.querySelector(".hero");
-  var ticking = false;
+  // ---------- scroll progress ----------
+  var bar = document.querySelector(".progress"), ticking = false;
   function onScroll() {
     ticking = false;
     var max = document.documentElement.scrollHeight - innerHeight;
     if (bar) bar.style.setProperty("--p", max > 0 ? (window.scrollY / max).toFixed(4) : 0);
-    if (heroContent && hero && !reduce) {
-      var p = Math.min(1, window.scrollY / (hero.offsetHeight || 1));
-      heroContent.style.transform = "translateY(" + (p * -60).toFixed(1) + "px)";
-      heroContent.style.opacity = (1 - p * 1.1).toFixed(3);
-    }
   }
   window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
   onScroll();
+
+  // ---------- countdown to the next Sunday session (dates from content/club.json, Berlin time) ----------
+  var cd = document.querySelector("[data-countdown]");
+  if (cd) {
+    fetch("/content/club.json").then(function (r) { return r.json(); }).then(function (club) {
+      function berlinOffsetMin(date) {            // minutes Berlin is ahead of UTC at that moment
+        var p = {}; new Intl.DateTimeFormat("en-US", { timeZone: club.tz || "Europe/Berlin", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+          .formatToParts(date).forEach(function (x) { p[x.type] = x.value; });
+        return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - date.getTime()) / 60000;
+      }
+      function sessionStart(day) {               // "YYYY-MM-DD" + club.start (Berlin) -> Date
+        var hm = club.start.split(":"), guess = new Date(day + "T" + hm[0] + ":" + hm[1] + ":00Z");
+        return new Date(guess.getTime() - berlinOffsetMin(guess) * 60000);
+      }
+      function next() {
+        var d = new Date(club.first + "T12:00:00Z"), end = new Date(club.last + "T12:00:00Z"), now = Date.now();
+        var dur = (parseInt(club.end, 10) - parseInt(club.start, 10)) * 3600000;
+        while (d <= end) { var s = sessionStart(d.toISOString().slice(0, 10)); if (s.getTime() + dur > now) return { start: s, live: s.getTime() <= now }; d = new Date(d.getTime() + 7 * 864e5); }
+        return null;
+      }
+      var label = cd.querySelector("[data-cd-label]"), cells = cd.querySelectorAll("[data-cd]");
+      function tick() {
+        var n = next();
+        if (!n) { if (label) label.textContent = "season finished · new dates soon"; return; }
+        if (label) label.textContent = n.live ? "session is live now" : n.start.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: club.tz || "Europe/Berlin" }) + " · " + club.start + " (Berlin)";
+        var ms = Math.max(0, n.start.getTime() - Date.now()), v = { d: Math.floor(ms / 864e5), h: Math.floor(ms / 36e5) % 24, m: Math.floor(ms / 6e4) % 60, s: Math.floor(ms / 1e3) % 60 };
+        Array.prototype.forEach.call(cells, function (c) { var k = c.getAttribute("data-cd"), t = (v[k] < 10 ? "0" : "") + v[k]; if (c.textContent !== t) c.textContent = t; });
+      }
+      tick(); setInterval(tick, 1000);
+    }).catch(function () {});
+  }
 })();

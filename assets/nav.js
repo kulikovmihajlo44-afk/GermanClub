@@ -45,6 +45,7 @@
       right = '<a class="btn-pill" href="' + DK.CTA.href + '">' + esc(DK.CTA.label) + "</a>" +
         (inApp ? '<a class="nav-link" href="/app">Open my app</a>' : '<a class="nav-link" href="/login" id="navLogin">Log in</a>');
     }
+    right = (DK.THEME_BTN || "") + right;                 // light / dark switch (assets/theme.js)
     host.className = "nav scrolled " + area;
     host.innerHTML = '<div class="nav-inner">' + LOGO + '<nav class="nav-links" aria-label="Main">' + links + right + "</nav></div>";
     var lg = host.querySelector("#navLogin");

@@ -8,16 +8,16 @@
     // ?home=1 (or ?login=1 / a #section link) keeps the club website open instead.
     try { if (localStorage.getItem("dk_in") === "1" && !/[?&](home|login)=/.test(location.search) && !location.hash) location.replace("/app"); } catch (e) {}
   </script>
+  <meta name="theme-color" content="#fafafa">
+  <script src="assets/theme.js"></script>
   <script src="assets/account.js" defer></script>
-  <script src="assets/gate3d.js" defer></script>
+  <script src="assets/ascii3d.js" defer></script>
   <script src="assets/motion.js" defer></script>
-  <title>Deutsch-Klub — Learn German is always a good idea</title>
-  <meta name="description" content="Deutsch-Klub: a student-run university German club. Weekly sessions, a free placement test, grammar lessons and flashcards. All levels welcome — Learn, Practice, Experience, Connect.">
-  <meta name="theme-color" content="#0e0c0a">
+  <title>Deutsch-Klub — German, re-engineered for you</title>
+  <meta name="description" content="Deutsch-Klub: a student-run university German club with its own learning platform — adaptive placement test, grammar lessons, spaced-repetition flashcards and weekly sessions. All levels, A0 to C1.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
-  <link rel="preload" as="image" href="assets/img/hero.webp" fetchpriority="high">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body class="home">
@@ -29,15 +29,19 @@
     <div class="nav-inner">
       <a class="logo" href="#top">
         <span class="logo-mark" aria-hidden="true"></span>
-        <span class="logo-text">Deutsch-Klub</span>
+        <span class="logo-text">deutsch-klub</span>
       </a>
       <nav class="nav-links" aria-label="Main">
-        <a href="#about">About Us</a>
-        <a href="#levels">Language Levels</a>
-        <a href="/test">Placement Test</a>
+        <a href="#about">About</a>
+        <a href="#landmarks">Landmarks</a>
+        <a href="#levels">Levels</a>
+        <a href="/test">Placement test</a>
         <a href="#schedule">Schedule</a>
-        <a href="#contact">Contact</a>
-        <a href="#join" class="btn-pill">Join Now</a>
+        <a href="#join" class="btn-pill">Join now</a>
+        <button type="button" class="theme-btn" data-theme-toggle aria-label="Toggle dark mode">
+          <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" stroke-linecap="round"/></svg>
+          <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" stroke-linejoin="round"/></svg>
+        </button>
         <div class="acct" id="acct">
           <button type="button" class="acct-btn" aria-label="Account" aria-haspopup="menu" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="8.2" r="4"/><path d="M4.2 20.2c.9-4 4-6 7.8-6s6.9 2 7.8 6" stroke-linecap="round"/></svg>
@@ -47,113 +51,142 @@
     </div>
   </header>
 
-  <!-- ============ HERO: 3D monument (assets/gate3d.js) ============ -->
+  <main>
+  <!-- ============ HERO ============ -->
   <section class="hero">
-    <div class="hero-frame" aria-hidden="true"></div>
-    <div class="hero-stage" aria-hidden="true">
-      <img class="hero-fallback" src="assets/img/hero.webp" width="1195" height="843" alt="">
-      <canvas id="gate3d"></canvas>
-    </div>
-    <div class="hero-content">
-      <p class="hero-meta"><span>Deutsch-Klub</span><i>◆</i><span>Every Sunday, 13:00</span><i>◆</i><span>EH Seminar Room 3</span></p>
-      <h1 class="hero-title">
-        <span class="ht-main">Learn German</span>
-        <span class="ht-sub">is always a</span>
-        <span class="ht-gold">good idea<svg class="swash" viewBox="0 0 400 24" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="swashGrad" x1="0" x2="1"><stop offset="0" stop-color="#8f6f36"/><stop offset="0.45" stop-color="#e6c88a"/><stop offset="1" stop-color="#c9a45c" stop-opacity="0.2"/></linearGradient></defs><path d="M6 17 C 90 6, 230 4, 396 9"/></svg></span>
-      </h1>
-      <div class="hero-cta">
-        <a class="btn-solid" href="/test">Take the placement test</a>
-        <a class="btn-ghost" href="#join">Join the club</a>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="cmd"><span class="ps">~/deutsch-klub $</span><span data-type="render brandenburger_tor --mode=ascii"></span><span class="caret" aria-hidden="true"></span></p>
+        <h1><span class="line"><span>German,</span></span><span class="line"><span>re&#8209;engineered</span></span><span class="line"><span>for you.</span></span></h1>
+        <p class="hero-lead">A student-run club with its own learning platform: an adaptive placement test, grammar lessons, spaced-repetition flashcards — and real conversations every Sunday.</p>
+        <div class="hero-cta">
+          <a class="btn-solid" href="/test">Start placement test <span class="arr" aria-hidden="true">→</span></a>
+          <a class="btn-ghost" href="#join">Join the club</a>
+        </div>
+        <div class="hero-tags">
+          <span class="tag"><b>A0–C1</b> all levels</span>
+          <span class="tag"><b>20</b> adaptive questions</span>
+          <span class="tag"><b>FSRS</b> flashcards</span>
+          <span class="tag"><b>Sun</b> 13:00 · EH 3</span>
+        </div>
       </div>
+      <figure class="viewport" aria-label="Rotating 3D model of the Brandenburg Gate drawn with text characters">
+        <div class="vp-bar"><span class="vp-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="vp-name">brandenburger_tor.obj</span><span class="vp-live">live</span></div>
+        <pre class="ascii" data-src="/assets/img/hero.webp" data-res="250" data-size="9" data-floor="1" data-speed="0.28" aria-hidden="true"></pre>
+        <figcaption class="vp-foot"><span data-stat="grid">—</span><span data-stat="pts">—</span><span data-stat="yaw">—</span><span data-stat="fps">—</span><span>drag to rotate</span></figcaption>
+      </figure>
     </div>
-    <div class="hero-foot">
-      <p class="rule">All levels welcome</p>
-      <p class="pillars">Learn<i>◆</i>Practice<i>◆</i>Experience<i>◆</i>Connect</p>
-    </div>
-    <div class="scroll-hint" aria-hidden="true">Scroll</div>
   </section>
 
-  <!-- ============ MARQUEE ============ -->
-  <div class="marquee" aria-hidden="true">
-    <div class="mq-track">
-      <span>Learn</span><i>✦</i><span class="de">Lernen</span><i>✦</i><span>Practice</span><i>✦</i><span class="de">Üben</span><i>✦</i><span>Experience</span><i>✦</i><span class="de">Erleben</span><i>✦</i><span>Connect</span><i>✦</i><span class="de">Verbinden</span><i>✦</i>
-      <span>Learn</span><i>✦</i><span class="de">Lernen</span><i>✦</i><span>Practice</span><i>✦</i><span class="de">Üben</span><i>✦</i><span>Experience</span><i>✦</i><span class="de">Erleben</span><i>✦</i><span>Connect</span><i>✦</i><span class="de">Verbinden</span><i>✦</i>
+  <!-- ============ METRICS ============ -->
+  <div class="metrics">
+    <div class="metrics-in" data-stagger>
+      <div class="metric"><b data-count="20">20</b><span>questions per adaptive test</span></div>
+      <div class="metric"><b data-count="75">75</b><span>questions in the test bank</span></div>
+      <div class="metric"><b data-count="6">6</b><span>levels, from A0 to C1</span></div>
+      <div class="metric"><b data-count="3" data-suffix="h">3h</b><span>live session every Sunday</span></div>
     </div>
   </div>
 
   <!-- ============ ABOUT ============ -->
   <section class="section about" id="about">
-    <div class="section-inner split">
-      <div class="about-copy" data-stagger>
-        <p class="eyebrow"><span class="mark mark-circle" aria-hidden="true"></span>About Us</p>
-        <h2>More than a <em>language class</em></h2>
-        <p class="lead">Deutsch-Klub is a student-run community dedicated to cultural immersion and authentic engagement with the German-speaking world.</p>
-        <p>We go beyond textbook grammar — our sessions are living conversations, guided debates, film screenings, and literary discussions that place language in its true cultural context.</p>
-        <p>Whether you are practising spoken German for travel, preparing for a semester abroad, or developing academic communication skills for research and publication, our peer-led workshops and faculty partnerships offer the structure and challenge you need.</p>
-        <p>All levels are welcome. What unites us is curiosity — about language, history, architecture, literature, and the richly layered culture that German opens up.</p>
+    <div class="section-inner">
+      <div class="sec-head reveal">
+        <p class="sec-no" data-scramble="01 / About">01 / About</p>
+        <h2>More than a language class.</h2>
       </div>
-      <div class="about-grid" data-stagger>
-        <figure class="frame tilt"><div class="frame-in"><img src="assets/img/about-1.webp" width="900" height="753" loading="lazy" decoding="async" alt="Line drawing of the Frauenkirche in Munich"></div><figcaption>Frauenkirche · München</figcaption></figure>
-        <figure class="frame tilt"><div class="frame-in"><img src="assets/img/about-2.webp" width="900" height="600" loading="lazy" decoding="async" alt="Line drawing of Neuschwanstein Castle"></div><figcaption>Schloss Neuschwanstein</figcaption></figure>
-        <figure class="frame tilt"><div class="frame-in"><img src="assets/img/about-3.webp" width="900" height="600" loading="lazy" decoding="async" alt="Line drawing of the Reichstag building in Berlin"></div><figcaption>Reichstag · Berlin</figcaption></figure>
-        <figure class="frame tilt"><div class="frame-in"><img src="assets/img/about-4.webp" width="900" height="675" loading="lazy" decoding="async" alt="Line drawing of the Elbphilharmonie in Hamburg"></div><figcaption>Elbphilharmonie · Hamburg</figcaption></figure>
+      <div class="about-body" data-stagger>
+        <p class="lead">Deutsch-Klub is a student-run community for cultural immersion and authentic engagement with the German-speaking world.</p>
+        <div class="col">
+          <p>We go beyond textbook grammar — our sessions are living conversations, guided debates, film screenings, and literary discussions that place language in its true cultural context.</p>
+          <p>Whether you are practising spoken German for travel, preparing for a semester abroad, or developing academic communication skills, our peer-led workshops and faculty partnerships offer the structure and challenge you need.</p>
+          <p>All levels are welcome. What unites us is curiosity — about language, history, architecture, literature, and the culture German opens up.</p>
+        </div>
+        <div class="chips"><span class="tag">conversations</span><span class="tag">debates</span><span class="tag">film screenings</span><span class="tag">literature</span><span class="tag">grammar workshops</span></div>
       </div>
     </div>
   </section>
 
-  <!-- ============ LANGUAGE LEVELS ============ -->
+  <!-- ============ LANDMARKS: live ASCII 3D objects ============ -->
+  <section class="section landmarks" id="landmarks">
+    <div class="section-inner">
+      <div class="sec-head reveal">
+        <p class="sec-no" data-scramble="02 / Landmarks">02 / Landmarks</p>
+        <h2>Germany, rendered in real time.</h2>
+        <p class="subtext">Every landmark on this page is a live 3D object drawn with characters. Drag any of them to rotate.</p>
+      </div>
+      <div class="lm-grid" data-stagger>
+        <figure class="lm"><pre class="ascii" data-src="/assets/img/about-1.webp" data-res="120" data-size="7" data-speed="0.35" aria-hidden="true"></pre>
+          <figcaption class="lm-meta"><div><strong>Frauenkirche</strong><small>München</small></div><span>48.1386°N 11.5736°E</span></figcaption></figure>
+        <figure class="lm"><pre class="ascii" data-src="/assets/img/about-2.webp" data-res="120" data-size="7" data-speed="-0.3" aria-hidden="true"></pre>
+          <figcaption class="lm-meta"><div><strong>Schloss Neuschwanstein</strong><small>Schwangau</small></div><span>47.5576°N 10.7498°E</span></figcaption></figure>
+        <figure class="lm"><pre class="ascii" data-src="/assets/img/about-3.webp" data-res="120" data-size="7" data-speed="0.32" aria-hidden="true"></pre>
+          <figcaption class="lm-meta"><div><strong>Reichstag</strong><small>Berlin</small></div><span>52.5186°N 13.3762°E</span></figcaption></figure>
+        <figure class="lm"><pre class="ascii" data-src="/assets/img/about-4.webp" data-res="120" data-size="7" data-speed="-0.28" aria-hidden="true"></pre>
+          <figcaption class="lm-meta"><div><strong>Elbphilharmonie</strong><small>Hamburg</small></div><span>53.5413°N 9.9841°E</span></figcaption></figure>
+        <figure class="lm"><pre class="ascii" data-src="/assets/img/join-1.webp" data-res="120" data-size="7" data-speed="0.3" aria-hidden="true"></pre>
+          <figcaption class="lm-meta"><div><strong>Frauenkirche</strong><small>Dresden</small></div><span>51.0519°N 13.7416°E</span></figcaption></figure>
+        <figure class="lm"><pre class="ascii" data-src="/assets/img/join-2.webp" data-res="120" data-size="7" data-speed="-0.33" aria-hidden="true"></pre>
+          <figcaption class="lm-meta"><div><strong>St. Michaelis</strong><small>Hamburg</small></div><span>53.5483°N 9.9788°E</span></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LEVELS ============ -->
   <section class="section levels" id="levels">
     <div class="section-inner">
-      <p class="eyebrow center reveal"><span class="mark mark-diamond" aria-hidden="true"></span>Language Levels</p>
-      <h2 class="center reveal">Find your <em>starting point</em></h2>
-      <div class="cards" data-stagger>
-        <article class="card tilt" data-tilt="7">
-          <span class="card-icon icon-ring" aria-hidden="true"></span>
-          <p class="card-code">A0</p>
-          <hr class="hairline">
-          <h3>Absolute Beginner</h3>
-          <p>No prior knowledge required. Start from zero — learn the alphabet, greetings, and essential everyday phrases.</p>
-        </article>
-        <article class="card tilt" data-tilt="7">
-          <span class="card-icon icon-diamond" aria-hidden="true"></span>
-          <p class="card-code">A1</p>
-          <hr class="hairline">
-          <h3>Elementary</h3>
-          <p>Build foundational vocabulary and simple sentence structures. Hold basic conversations and introduce yourself confidently.</p>
-        </article>
-        <article class="card tilt" data-tilt="7">
-          <span class="card-icon icon-diamond small" aria-hidden="true"></span>
-          <p class="card-code">B2</p>
-          <hr class="hairline">
-          <h3>Upper Intermediate</h3>
-          <p>Engage with complex texts and native speakers. Articulate ideas fluently on a wide range of topics.</p>
-        </article>
-        <article class="card tilt" data-tilt="7">
-          <span class="card-icon icon-star" aria-hidden="true"></span>
-          <p class="card-code">C1</p>
-          <hr class="hairline">
-          <h3>Proficient</h3>
-          <p>Near-native command. Produce well-structured, detailed texts and understand demanding implicit meaning.</p>
-        </article>
+      <div class="sec-head reveal">
+        <p class="sec-no" data-scramble="03 / Levels">03 / Levels</p>
+        <h2>Find your starting point.</h2>
       </div>
-      <div class="levels-cta reveal"><a class="btn-ghost" href="/test">Not sure? Take the free 10-minute test</a></div>
+      <div class="levels-table" data-stagger>
+        <div class="lv"><span class="lv-code">A0</span><h3>Absolute Beginner</h3><p>No prior knowledge required. Start from zero — the alphabet, greetings, and essential everyday phrases.</p><div class="lv-bar" aria-hidden="true"><i style="--w: 10%"></i></div></div>
+        <div class="lv"><span class="lv-code">A1</span><h3>Elementary</h3><p>Foundational vocabulary and simple sentence structures. Hold basic conversations and introduce yourself confidently.</p><div class="lv-bar" aria-hidden="true"><i style="--w: 30%"></i></div></div>
+        <div class="lv"><span class="lv-code">B2</span><h3>Upper Intermediate</h3><p>Engage with complex texts and native speakers. Articulate ideas fluently on a wide range of topics.</p><div class="lv-bar" aria-hidden="true"><i style="--w: 70%"></i></div></div>
+        <div class="lv"><span class="lv-code">C1</span><h3>Proficient</h3><p>Near-native command. Produce well-structured, detailed texts and understand demanding implicit meaning.</p><div class="lv-bar" aria-hidden="true"><i style="--w: 90%"></i></div></div>
+      </div>
+      <div class="levels-cta reveal"><a class="btn-solid" href="/test">Not sure? Take the 10-minute test <span class="arr" aria-hidden="true">→</span></a></div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="section how" id="how">
+    <div class="section-inner">
+      <div class="sec-head reveal">
+        <p class="sec-no" data-scramble="04 / Workflow">04 / Workflow</p>
+        <h2>Three steps. No guesswork.</h2>
+      </div>
+      <div class="steps" data-stagger>
+        <div class="step"><span class="n">step_01</span><h3>Measure</h3><p>A free adaptive placement test: 20 questions that get harder or easier with every answer. Your level, A0 to C1, in about 10 minutes.</p><a href="/test">→ /test</a></div>
+        <div class="step"><span class="n">step_02</span><h3>Practise</h3><p>Your own plan in the app: grammar lessons with exercises and flashcards scheduled by the FSRS algorithm, ten new words a day.</p><a href="/app">→ /app</a></div>
+        <div class="step"><span class="n">step_03</span><h3>Speak</h3><p>Every Sunday the club meets in person: conversations, debates and films with people at every level.</p><a href="#schedule">→ #schedule</a></div>
+      </div>
     </div>
   </section>
 
   <!-- ============ SCHEDULE ============ -->
   <section class="section schedule" id="schedule">
-    <div class="section-inner">
-      <p class="eyebrow center reveal"><span class="mark mark-circle" aria-hidden="true"></span>Schedule</p>
-      <h2 class="center reveal">Every <em>weekend</em></h2>
-      <p class="subtext center reveal">from 13:00 to 16:00</p>
-      <div class="ticket reveal">
-        <span class="corner c1" aria-hidden="true"></span><span class="corner c2" aria-hidden="true"></span><span class="corner c3" aria-hidden="true"></span><span class="corner c4" aria-hidden="true"></span>
-        <p class="t-day">Sunday</p>
-        <h3 class="t-what">Introduction session</h3>
-        <div class="t-facts">
-          <div><span>Time</span><strong>13:00 – 16:00</strong></div>
-          <div><span>Place</span><strong>East Hall, Seminar Room 3</strong></div>
-          <div><span>Level</span><strong>All levels welcome</strong></div>
+    <div class="section-inner narrow">
+      <div class="sec-head reveal" style="grid-template-columns: 1fr">
+        <p class="sec-no" data-scramble="05 / Schedule">05 / Schedule</p>
+        <h2>Every weekend, from 13:00 to 16:00.</h2>
+      </div>
+      <div class="term reveal" data-countdown>
+        <div class="vp-bar"><span class="vp-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="vp-name">schedule — zsh</span><span class="vp-live">synced</span></div>
+        <div class="term-body">
+          <div><span class="k">$</span> <span class="v">deutsch-klub schedule --next</span></div>
+          <div><span class="k">day&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> <span class="v">Sunday</span></div>
+          <div><span class="k">session&nbsp;</span> <span class="v">Introduction session</span></div>
+          <div><span class="k">time&nbsp;&nbsp;&nbsp;&nbsp;</span> <span class="v">13:00 – 16:00</span></div>
+          <div><span class="k">place&nbsp;&nbsp;&nbsp;</span> <span class="v">East Hall, Seminar Room 3</span></div>
+          <div><span class="k">level&nbsp;&nbsp;&nbsp;</span> <span class="v">all levels welcome</span></div>
+          <div><span class="k">next&nbsp;&nbsp;&nbsp;&nbsp;</span> <span class="v" data-cd-label>—</span></div>
+        </div>
+        <div class="countdown" aria-label="Time until the next session">
+          <div><b data-cd="d">--</b><span>days</span></div>
+          <div><b data-cd="h">--</b><span>hours</span></div>
+          <div><b data-cd="m">--</b><span>minutes</span></div>
+          <div><b data-cd="s">--</b><span>seconds</span></div>
         </div>
       </div>
     </div>
@@ -161,40 +194,38 @@
 
   <!-- ============ JOIN ============ -->
   <section class="section join" id="join">
-    <div class="ring-scene" aria-hidden="true">
-      <div class="ring">
-        <div class="ring-panel"><img src="assets/img/about-1.webp" width="900" height="753" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/about-3.webp" width="900" height="600" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/join-1.webp" width="560" height="373" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/about-2.webp" width="900" height="600" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/join-4.webp" width="560" height="373" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/about-4.webp" width="900" height="675" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/join-2.webp" width="560" height="835" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/hero.webp" width="1195" height="843" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/about-1.webp" width="900" height="753" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/about-3.webp" width="900" height="600" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/join-1.webp" width="560" height="373" loading="lazy" decoding="async" alt=""></div>
-        <div class="ring-panel"><img src="assets/img/about-2.webp" width="900" height="600" loading="lazy" decoding="async" alt=""></div>
+    <div class="section-inner join-grid">
+      <div class="join-side reveal">
+        <p class="sec-no" data-scramble="06 / Join">06 / Join</p>
+        <h2>Begin your German journey.</h2>
+        <p class="subtext">Submit your application and we'll reach out within 48 hours. You get a personal 12-digit ID — your login on any phone or laptop.</p>
+        <figure class="viewport">
+          <div class="vp-bar"><span class="vp-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="vp-name">reichstag.obj</span><span class="vp-live">live</span></div>
+          <pre class="ascii" data-src="/assets/img/about-3.webp" data-res="130" data-size="7" data-speed="0.25" aria-hidden="true"></pre>
+          <figcaption class="vp-foot"><span data-stat="pts">—</span><span data-stat="yaw">—</span><span data-stat="fps">—</span></figcaption>
+        </figure>
+        <div class="contact-block">
+          <p class="eyebrow contact-label">Contact</p>
+          <a class="contact-mail" href="mailto:MKULKOV@constructor.university">MKULKOV@constructor.university</a>
+          <p class="contact-name">Mykhailo Kulikov</p>
+          <p class="contact-role">The club leader</p>
+        </div>
       </div>
-    </div>
-    <div class="section-inner narrow">
-      <p class="eyebrow center reveal"><span class="mark mark-star" aria-hidden="true"></span>Join Us</p>
-      <h2 class="center reveal">Begin your <em>German journey</em></h2>
-      <p class="subtext center reveal">Submit your application and we'll reach out within 48 hours.</p>
 
       <form class="apply-form reveal" name="application-form" method="POST" action="/apply" id="contact">
+        <p class="eyebrow" style="margin-bottom:1.2rem">POST /apply</p>
         <div class="field">
-          <label for="fullname">Full Name</label>
+          <label for="fullname">Full name</label>
           <input type="text" id="fullname" name="fullname" placeholder="Anna Müller" autocomplete="name" required>
         </div>
         <div class="field">
-          <label for="email">Email Address</label>
+          <label for="email">Email address</label>
           <input type="email" id="email" name="email" placeholder="JSIMENS@constructor.university" autocomplete="email" required>
         </div>
         <div class="field">
-          <label for="level">Target Language Level</label>
+          <label for="level">Target language level</label>
           <select id="level" name="level" required>
-            <option value="" selected disabled>Select a level →</option>
+            <option value="" selected disabled>Select a level</option>
             <option value="A0">A0 — Absolute Beginner</option>
             <option value="A1">A1 — Elementary</option>
             <option value="A2">A2 — Pre-Intermediate</option>
@@ -203,25 +234,20 @@
             <option value="C1">C1 — Proficient</option>
           </select>
         </div>
-        <button type="submit" class="btn-solid">Submit Application</button>
+        <button type="submit" class="btn-solid">Submit application</button>
         <p class="privacy">Your data is kept private and used only for club coordination.</p>
-        <p class="privacy">After you apply you get a personal 12-digit ID. It is your login on any phone or laptop.</p>
       </form>
-
-      <div class="contact-block reveal">
-        <p class="rule contact-label">Contact</p>
-        <a class="contact-mail" href="mailto:MKULKOV@constructor.university">MKULKOV@constructor.university</a>
-        <p class="contact-name">Mykhailo Kulikov</p>
-        <p class="contact-role">The club leader</p>
-      </div>
     </div>
   </section>
+  </main>
 
   <!-- ============ FOOTER ============ -->
   <footer class="footer">
-    <span class="logo-mark" aria-hidden="true"></span>
-    <p class="pillars">Learn<i>◆</i>Practice<i>◆</i>Experience<i>◆</i>Connect</p>
-    <p>© 2026 Deutsch-Klub. All rights reserved. · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+    <div class="footer-in">
+      <span><span class="logo-mark" aria-hidden="true"></span>© 2026 Deutsch-Klub</span>
+      <span>learn · practice · experience · connect</span>
+      <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
+    </div>
   </footer>
 
   <!-- "Are you registered?" bar (visitors only) -->
