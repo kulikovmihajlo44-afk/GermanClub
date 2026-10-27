@@ -98,13 +98,26 @@
     }));
     avatars.setAttribute("role", "radiogroup"); avatars.setAttribute("aria-label", "Avatar");
     var nameIn = h("input", { type: "text", id: "mcName", value: f.name, maxlength: "120", autocomplete: "name" });
-    nameIn.addEventListener("input", function () { f.name = nameIn.value; scene.update({ name: f.name.trim() }); });
+    var nameMsg = h("p", { "class": "field-msg", id: "mcNameMsg", "aria-live": "polite" });
+    nameIn.setAttribute("aria-describedby", "mcNameMsg");
+    function checkName(final) {                                     // same rules as the join form and the server (assets/validate.js)
+      if (!window.DKValidate) return true;
+      var r = DKValidate.name(nameIn.value);
+      nameMsg.className = "field-msg" + (r.ok ? (final && r.changed ? " ok" : "") : " err");
+      nameMsg.textContent = r.ok ? (final && r.changed ? "✓ Written as " + r.value : "") : r.error;
+      if (r.ok) nameIn.removeAttribute("aria-invalid"); else nameIn.setAttribute("aria-invalid", "true");
+      if (r.ok && final && r.changed) { nameIn.value = f.name = r.value; scene.update({ name: r.value }); }
+      return r.ok;
+    }
+    var tName = 0;
+    nameIn.addEventListener("input", function () { f.name = nameIn.value; scene.update({ name: f.name.trim() }); clearTimeout(tName); tName = setTimeout(function () { checkName(false); }, 500); });
+    nameIn.addEventListener("blur", function () { checkName(true); });
     var examIn = h("input", { type: "date", id: "mcExam", value: f.exam, min: new Date().toISOString().slice(0, 10) });
     var examBox = h("div", { "class": "a-field" }, [h("label", { "for": "mcExam", text: "Goethe exam date (optional)" }), examIn]);
     function syncExam() { examBox.hidden = f.goal !== "goethe"; }
     var save = h("button", { type: "button", "class": "btn-solid", text: "Save card", onclick: function () {
       err.textContent = "";
-      if (f.name.trim().length < 2) { err.textContent = "Please enter your name."; return; }
+      if (!checkName(true)) { nameIn.focus(); return; }
       if (!f.goal) { err.textContent = "Please choose a goal."; return; }
       if (!f.minutes) { err.textContent = "Please choose your minutes per day."; return; }
       save.disabled = true;
@@ -124,7 +137,7 @@
         h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Member card"]),
         h("h1", { "class": "a-h1", text: "Your card" }),
         h("h2", { "class": "a-h3", text: "Avatar" }), avatars,
-        h("div", { "class": "a-field" }, [h("label", { "for": "mcName", text: "Name" }), nameIn]),
+        h("div", { "class": "a-field" }, [h("label", { "for": "mcName", text: "Name" }), nameIn, nameMsg]),
         h("h2", { "class": "a-h3", text: "Goal" }),
         chipRow(GOALS.map(function (g) { return [g, DKA.goalName(g)]; }), function (v) { return f.goal === v; }, function (v) { f.goal = v; syncExam(); scene.update({ goal: v }); }, "Goal"),
         examBox,

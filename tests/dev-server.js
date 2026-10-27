@@ -6,7 +6,7 @@ const db = require(root + '/lib/db');
 const pg = new PGlite();
 db.setClient({ query: async (t, p) => (await pg.query(t, p)).rows });
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'test';
-const routes = { '/api/app': 'app', '/apply': 'apply', '/api/apply': 'apply', '/api/login': 'login', '/api/logout': 'logout', '/api/me': 'me', '/api/settings': 'settings', '/api/admin': 'admin' };
+const routes = { '/api/app': 'app', '/apply': 'apply', '/api/apply': 'apply', '/api/login': 'login', '/api/logout': 'logout', '/api/me': 'me', '/api/settings': 'settings', '/api/admin': 'admin', '/api/auth': 'auth', '/auth/callback': 'auth' };
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.png': 'image/png' };
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x'); let p = u.pathname;

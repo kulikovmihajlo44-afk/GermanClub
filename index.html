@@ -12,6 +12,7 @@
   <link rel="icon" href="/assets/img/favicon.svg?v=1" type="image/svg+xml">
   <script src="assets/theme.js"></script>
   <script src="assets/account.js" defer></script>
+  <script src="assets/validate.js" defer></script>
   <script src="assets/ascii3d.js" defer></script>
   <script src="assets/motion.js" defer></script>
   <title>Deutsch-Klub — German, re-engineered for you</title>
@@ -145,11 +146,14 @@
       <form class="apply-form reveal" name="application-form" method="POST" action="/apply" id="contact">
         <div class="field">
           <label for="fullname">Full name</label>
-          <input type="text" id="fullname" name="fullname" placeholder="Anna Müller" autocomplete="name" required>
+          <input type="text" id="fullname" name="fullname" placeholder="Anna Müller" autocomplete="name" required aria-describedby="fullname-msg">
+          <p class="field-msg" id="fullname-msg" aria-live="polite"></p>
         </div>
         <div class="field">
           <label for="email">Email address</label>
-          <input type="email" id="email" name="email" placeholder="JSIMENS@constructor.university" autocomplete="email" required>
+          <input type="email" id="email" name="email" placeholder="JSIMENS@constructor.university" autocomplete="email" required aria-describedby="email-msg">
+          <input type="hidden" name="email_confirmed" value="">
+          <p class="field-msg" id="email-msg" aria-live="polite"></p>
         </div>
         <div class="field">
           <label for="level">Target language level</label>
@@ -164,6 +168,11 @@
           </select>
         </div>
         <button type="submit" class="btn-solid">Submit application</button>
+        <div class="oauth" hidden>
+          <p class="oauth-note">Confirm your e-mail with your account — no password is shared with us.</p>
+          <a class="btn-oauth" data-p="google" href="#" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Continue with Google</span></a>
+          <a class="btn-oauth" data-p="microsoft" href="#" hidden><svg viewBox="0 0 23 23" aria-hidden="true"><path fill="#F35325" d="M1 1h10v10H1z"/><path fill="#81BC06" d="M12 1h10v10H12z"/><path fill="#05A6F0" d="M1 12h10v10H1z"/><path fill="#FFBA08" d="M12 12h10v10H12z"/></svg><span>Continue with Microsoft</span></a>
+        </div>
         <p class="privacy">Your data is kept private and used only for club coordination.</p>
         <p class="contact-line">Questions? <a href="mailto:MKULKOV@constructor.university">MKULKOV@constructor.university</a> · Mykhailo Kulikov</p>
       </form>
@@ -251,6 +260,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var btn = form.querySelector("button[type=submit]");
   form.addEventListener("submit", function (ev) {
     ev.preventDefault();
+    if (window.DKForm && !DKForm.validate()) return;                 // name / e-mail checks (below)
     var data = new URLSearchParams(new FormData(form));
     var label = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
@@ -282,6 +292,8 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           note.classList.add("visible");
           form.reset();
+        } else if (res.status === 400 && res.j.field && window.DKForm) {
+          DKForm.serverError(res.j);                            // shown under the field it is about
         } else {
           throw new Error(res.j.error || "Rejected by server");
         }
@@ -297,5 +309,105 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
+  <script>
+// Live checks for the join form (rules in assets/validate.js, the same ones the server uses): a real first and last
+// name with tidy capitals; an e-mail in the right format, not a throw-away inbox, typo hints ("gmial.com" -> gmail.com)
+// and a server check that the domain receives mail at all.
+document.addEventListener("DOMContentLoaded", function () {
+  var form = document.querySelector(".apply-form"), V = window.DKValidate;
+  if (!form || !V) return;
+  var nameIn = document.getElementById("fullname"), mailIn = document.getElementById("email");
+  var nameMsg = document.getElementById("fullname-msg"), mailMsg = document.getElementById("email-msg");
+  var confirmed = form.querySelector("input[name=email_confirmed]"), mailState = { value: "", ok: null }, seq = 0;
+  function show(input, box, text, kind) {
+    box.innerHTML = ""; box.className = "field-msg" + (kind ? " " + kind : "");
+    if (text) box.appendChild(document.createTextNode(text));
+    if (kind === "err") input.setAttribute("aria-invalid", "true"); else input.removeAttribute("aria-invalid");
+  }
+  function suggest(s) {
+    show(mailIn, mailMsg, "Did you mean " + s + "? ", "warn");
+    var use = document.createElement("button"); use.type = "button"; use.className = "msg-btn"; use.textContent = "Use " + s.split("@")[1];
+    var keep = document.createElement("button"); keep.type = "button"; keep.className = "msg-btn ghost"; keep.textContent = "Keep mine";
+    use.addEventListener("click", function () { mailIn.value = s; confirmed.value = ""; checkMail(true); });
+    keep.addEventListener("click", function () { confirmed.value = "1"; show(mailIn, mailMsg, "Okay — we'll use " + mailIn.value.trim().toLowerCase() + ".", "ok"); });
+    mailMsg.appendChild(use); mailMsg.appendChild(keep);
+  }
+  function checkName(final) {
+    var r = V.name(nameIn.value);
+    if (!nameIn.value.trim() && !final) { show(nameIn, nameMsg, ""); return false; }
+    if (!r.ok) { show(nameIn, nameMsg, r.error, "err"); return false; }
+    if (final && r.changed) nameIn.value = r.value;
+    show(nameIn, nameMsg, final && r.changed ? "✓ Written as " + r.value : "", final ? "ok" : "");
+    return true;
+  }
+  function checkMail(final) {
+    var raw = mailIn.value, r = V.email(raw);
+    if (!raw.trim() && !final) { show(mailIn, mailMsg, ""); return false; }
+    if (!r.ok) { show(mailIn, mailMsg, r.error, "err"); mailState = { value: "", ok: false }; return false; }
+    if (r.suggestion && confirmed.value !== "1") { suggest(r.suggestion); }
+    else if (final) show(mailIn, mailMsg, "Checking the address…", "");
+    if (!final) return true;
+    if (mailState.value === r.value && mailState.ok !== null) { if (mailState.ok && !(r.suggestion && confirmed.value !== "1")) show(mailIn, mailMsg, "✓ This domain receives mail", "ok"); return mailState.ok; }
+    var my = ++seq;
+    fetch("/api/auth?a=check-email&email=" + encodeURIComponent(r.value)).then(function (x) { return x.json(); }).then(function (j) {
+      if (my !== seq || !j || j.ok === false) return;
+      mailState = { value: r.value, ok: !!j.valid };
+      if (!j.valid) show(mailIn, mailMsg, j.error, "err");
+      else if (!(r.suggestion && confirmed.value !== "1")) show(mailIn, mailMsg, "✓ This domain receives mail", "ok");
+    }).catch(function () {});
+    return true;
+  }
+  var t1 = 0, t2 = 0;
+  nameIn.addEventListener("input", function () { clearTimeout(t1); t1 = setTimeout(function () { checkName(false); }, 500); });
+  nameIn.addEventListener("blur", function () { checkName(true); });
+  mailIn.addEventListener("input", function () { confirmed.value = ""; mailState = { value: "", ok: null }; clearTimeout(t2); t2 = setTimeout(function () { checkMail(false); }, 600); });
+  mailIn.addEventListener("blur", function () { checkMail(true); });
+  window.DKForm = {
+    validate: function () {
+      if (form.classList.contains("use-oauth")) return true;          // name and e-mail come from Google / Microsoft
+      var a = checkName(true), b = checkMail(true);
+      if (!a) { nameIn.focus(); return false; }
+      if (!b || mailState.ok === false) { mailIn.focus(); return false; }
+      if (V.email(mailIn.value).suggestion && confirmed.value !== "1") { mailIn.focus(); return false; }
+      return true;
+    },
+    serverError: function (j) {
+      if (j.field === "fullname") { show(nameIn, nameMsg, j.error, "err"); nameIn.focus(); }
+      else if (j.field === "email") { if (j.typo && j.suggestion) suggest(j.suggestion); else show(mailIn, mailMsg, j.error, "err"); mailIn.focus(); }
+      else { var n = form.querySelector(".form-note"); if (n) { n.textContent = j.error; n.classList.add("visible", "error"); } }
+    }
+  };
+});
+  </script>
+  <script>
+// Sign-up with a confirmed e-mail (api/auth.js): once Google or Microsoft is set up, name and e-mail come from the
+// provider and the form only asks for the level.
+document.addEventListener("DOMContentLoaded", function () {
+  var form = document.querySelector(".apply-form"), box = form && form.querySelector(".oauth");
+  if (!form || !box) return;
+  var MSG = { cancelled: "Sign-in was cancelled — nothing was saved.", unverified: "That account could not confirm the e-mail address. Try another account or provider.",
+    noaccount: "There is no account for this e-mail yet — choose your level and sign up below.", expired: "The sign-in took too long. Please try again.",
+    state: "The sign-in was interrupted. Please try again.", provider: "The provider did not complete the sign-in. Please try again.",
+    ratelimit: "Too many sign-ups from this device. Please try again later.", level: "Please choose your level first.", config: "This sign-in is not available right now." };
+  function say(text, err) { var n = form.querySelector(".form-note"); if (!n) return; n.textContent = text; n.classList.add("visible"); n.classList.toggle("error", !!err); }
+  var code = new URLSearchParams(location.search).get("auth");
+  if (code && MSG[code]) { say(MSG[code], code !== "noaccount"); history.replaceState(null, "", location.pathname + "?home=1#join"); }
+  fetch("/api/auth?a=providers").then(function (r) { return r.json(); }).then(function (p) {
+    if (!p || !(p.google || p.microsoft)) return;
+    form.classList.add("use-oauth"); box.hidden = false;
+    ["fullname", "email"].forEach(function (id) { var f = document.getElementById(id); f.required = false; f.closest(".field").hidden = true; });
+    form.querySelector("button[type=submit]").hidden = true;
+    Array.prototype.forEach.call(box.querySelectorAll(".btn-oauth"), function (b) {
+      var pr = b.getAttribute("data-p"); if (!p[pr]) return; b.hidden = false;
+      b.addEventListener("click", function (e) {
+        e.preventDefault();
+        var level = document.getElementById("level").value;
+        if (!level) { say(MSG.level, true); document.getElementById("level").focus(); return; }
+        location.href = "/api/auth?a=start&p=" + pr + "&intent=signup&level=" + encodeURIComponent(level);
+      });
+    });
+  }).catch(function () {});
+});
+  </script>
 </body>
 </html>

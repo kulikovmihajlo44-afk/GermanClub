@@ -1,5 +1,6 @@
 // Tests for the admin window API (admin.users, admin.delete, user.is_admin) on real Postgres (PGlite).
 // Run:  node tests/admin.test.js   (needs: npm install && npm install --no-save @electric-sql/pglite)
+process.env.DK_DNS_OFFLINE = '1';                 // no real DNS lookups in tests (see tests/validate.test.js)
 const assert = require('assert');
 const path = require('path');
 const { PGlite } = require('@electric-sql/pglite');
