@@ -1,6 +1,7 @@
 // Tests for sign-up / log-in with Google and Microsoft (api/auth.js, lib/oauth.js) on real Postgres (PGlite).
 // The providers' token endpoints are simulated: each test decides which ID token the provider "returns".
 // Run:  node tests/auth.test.js   (needs: npm install && npm install --no-save @electric-sql/pglite)
+process.env.DK_DNS_OFFLINE = '1';                 // no real DNS lookups in tests (see tests/validate.test.js)
 const assert = require('assert');
 const path = require('path');
 const { PGlite } = require('@electric-sql/pglite');

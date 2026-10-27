@@ -12,6 +12,7 @@
   <link rel="icon" href="/assets/img/favicon.svg?v=1" type="image/svg+xml">
   <script src="assets/theme.js"></script>
   <script src="assets/account.js" defer></script>
+  <script src="assets/validate.js" defer></script>
   <script src="assets/ascii3d.js" defer></script>
   <script src="assets/motion.js" defer></script>
   <title>Deutsch-Klub — German, re-engineered for you</title>
@@ -145,11 +146,14 @@
       <form class="apply-form reveal" name="application-form" method="POST" action="/apply" id="contact">
         <div class="field">
           <label for="fullname">Full name</label>
-          <input type="text" id="fullname" name="fullname" placeholder="Anna Müller" autocomplete="name" required>
+          <input type="text" id="fullname" name="fullname" placeholder="Anna Müller" autocomplete="name" required aria-describedby="fullname-msg">
+          <p class="field-msg" id="fullname-msg" aria-live="polite"></p>
         </div>
         <div class="field">
           <label for="email">Email address</label>
-          <input type="email" id="email" name="email" placeholder="JSIMENS@constructor.university" autocomplete="email" required>
+          <input type="email" id="email" name="email" placeholder="JSIMENS@constructor.university" autocomplete="email" required aria-describedby="email-msg">
+          <input type="hidden" name="email_confirmed" value="">
+          <p class="field-msg" id="email-msg" aria-live="polite"></p>
         </div>
         <div class="field">
           <label for="level">Target language level</label>
@@ -256,6 +260,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var btn = form.querySelector("button[type=submit]");
   form.addEventListener("submit", function (ev) {
     ev.preventDefault();
+    if (window.DKForm && !DKForm.validate()) return;                 // name / e-mail checks (below)
     var data = new URLSearchParams(new FormData(form));
     var label = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
@@ -287,6 +292,8 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           note.classList.add("visible");
           form.reset();
+        } else if (res.status === 400 && res.j.field && window.DKForm) {
+          DKForm.serverError(res.j);                            // shown under the field it is about
         } else {
           throw new Error(res.j.error || "Rejected by server");
         }
@@ -302,6 +309,76 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
+  <script>
+// Live checks for the join form (rules in assets/validate.js, the same ones the server uses): a real first and last
+// name with tidy capitals; an e-mail in the right format, not a throw-away inbox, typo hints ("gmial.com" -> gmail.com)
+// and a server check that the domain receives mail at all.
+document.addEventListener("DOMContentLoaded", function () {
+  var form = document.querySelector(".apply-form"), V = window.DKValidate;
+  if (!form || !V) return;
+  var nameIn = document.getElementById("fullname"), mailIn = document.getElementById("email");
+  var nameMsg = document.getElementById("fullname-msg"), mailMsg = document.getElementById("email-msg");
+  var confirmed = form.querySelector("input[name=email_confirmed]"), mailState = { value: "", ok: null }, seq = 0;
+  function show(input, box, text, kind) {
+    box.innerHTML = ""; box.className = "field-msg" + (kind ? " " + kind : "");
+    if (text) box.appendChild(document.createTextNode(text));
+    if (kind === "err") input.setAttribute("aria-invalid", "true"); else input.removeAttribute("aria-invalid");
+  }
+  function suggest(s) {
+    show(mailIn, mailMsg, "Did you mean " + s + "? ", "warn");
+    var use = document.createElement("button"); use.type = "button"; use.className = "msg-btn"; use.textContent = "Use " + s.split("@")[1];
+    var keep = document.createElement("button"); keep.type = "button"; keep.className = "msg-btn ghost"; keep.textContent = "Keep mine";
+    use.addEventListener("click", function () { mailIn.value = s; confirmed.value = ""; checkMail(true); });
+    keep.addEventListener("click", function () { confirmed.value = "1"; show(mailIn, mailMsg, "Okay — we'll use " + mailIn.value.trim().toLowerCase() + ".", "ok"); });
+    mailMsg.appendChild(use); mailMsg.appendChild(keep);
+  }
+  function checkName(final) {
+    var r = V.name(nameIn.value);
+    if (!nameIn.value.trim() && !final) { show(nameIn, nameMsg, ""); return false; }
+    if (!r.ok) { show(nameIn, nameMsg, r.error, "err"); return false; }
+    if (final && r.changed) nameIn.value = r.value;
+    show(nameIn, nameMsg, final && r.changed ? "✓ Written as " + r.value : "", final ? "ok" : "");
+    return true;
+  }
+  function checkMail(final) {
+    var raw = mailIn.value, r = V.email(raw);
+    if (!raw.trim() && !final) { show(mailIn, mailMsg, ""); return false; }
+    if (!r.ok) { show(mailIn, mailMsg, r.error, "err"); mailState = { value: "", ok: false }; return false; }
+    if (r.suggestion && confirmed.value !== "1") { suggest(r.suggestion); }
+    else if (final) show(mailIn, mailMsg, "Checking the address…", "");
+    if (!final) return true;
+    if (mailState.value === r.value && mailState.ok !== null) { if (mailState.ok && !(r.suggestion && confirmed.value !== "1")) show(mailIn, mailMsg, "✓ This domain receives mail", "ok"); return mailState.ok; }
+    var my = ++seq;
+    fetch("/api/auth?a=check-email&email=" + encodeURIComponent(r.value)).then(function (x) { return x.json(); }).then(function (j) {
+      if (my !== seq || !j || j.ok === false) return;
+      mailState = { value: r.value, ok: !!j.valid };
+      if (!j.valid) show(mailIn, mailMsg, j.error, "err");
+      else if (!(r.suggestion && confirmed.value !== "1")) show(mailIn, mailMsg, "✓ This domain receives mail", "ok");
+    }).catch(function () {});
+    return true;
+  }
+  var t1 = 0, t2 = 0;
+  nameIn.addEventListener("input", function () { clearTimeout(t1); t1 = setTimeout(function () { checkName(false); }, 500); });
+  nameIn.addEventListener("blur", function () { checkName(true); });
+  mailIn.addEventListener("input", function () { confirmed.value = ""; mailState = { value: "", ok: null }; clearTimeout(t2); t2 = setTimeout(function () { checkMail(false); }, 600); });
+  mailIn.addEventListener("blur", function () { checkMail(true); });
+  window.DKForm = {
+    validate: function () {
+      if (form.classList.contains("use-oauth")) return true;          // name and e-mail come from Google / Microsoft
+      var a = checkName(true), b = checkMail(true);
+      if (!a) { nameIn.focus(); return false; }
+      if (!b || mailState.ok === false) { mailIn.focus(); return false; }
+      if (V.email(mailIn.value).suggestion && confirmed.value !== "1") { mailIn.focus(); return false; }
+      return true;
+    },
+    serverError: function (j) {
+      if (j.field === "fullname") { show(nameIn, nameMsg, j.error, "err"); nameIn.focus(); }
+      else if (j.field === "email") { if (j.typo && j.suggestion) suggest(j.suggestion); else show(mailIn, mailMsg, j.error, "err"); mailIn.focus(); }
+      else { var n = form.querySelector(".form-note"); if (n) { n.textContent = j.error; n.classList.add("visible", "error"); } }
+    }
+  };
+});
+  </script>
   <script>
 // Sign-up with a confirmed e-mail (api/auth.js): once Google or Microsoft is set up, name and e-mail come from the
 // provider and the form only asks for the level.

@@ -1,5 +1,6 @@
 // End-to-end backend tests: real Postgres (PGlite) behind the same lib/ + api/ code that runs on Vercel.
-// Run:  NODE_PATH=/opt/data/cache/scratch/npmtest/node_modules node tests/backend.test.js
+// Run:  node tests/backend.test.js   (needs: npm install && npm install --no-save @electric-sql/pglite)
+process.env.DK_DNS_OFFLINE = '1';                 // no real DNS lookups in tests (see tests/validate.test.js)
 const assert = require('assert');
 const path = require('path');
 const { PGlite } = require('@electric-sql/pglite');
@@ -42,8 +43,10 @@ const cookieOf = (r) => (r.headers['set-cookie'] || '').split(';')[0];
   assert.ok(!('email' in anna)); assert.ok(/HttpOnly/.test(r.headers['set-cookie']) && /Secure/.test(r.headers['set-cookie']) && /SameSite=Lax/.test(r.headers['set-cookie']) && /Max-Age=31536000/.test(r.headers['set-cookie'])); ok('session cookie is HttpOnly, Secure, SameSite=Lax, 1 year');
   r = await call(apply, { body: { fullname: 'Anna again', email: 'anna@constructor.university', level: 'A1' } });
   assert.strictEqual(r.body.duplicate, true); assert.ok(!r.body.user && !r.headers['set-cookie']); ok('same e-mail (any capitals): "duplicate", ID is NOT revealed, no session');
-  r = await call(apply, { body: { fullname: '=HYPERLINK("http://evil","x")', email: 'evil@x.de', level: 'A0' } });
-  assert.ok(!r.body.user.full_name.startsWith('=')); ok('leading formula characters stripped');
+  r = await call(apply, { body: { fullname: '=Eva Klein', email: 'evil@x.de', level: 'A0' } });
+  assert.strictEqual(r.body.user.full_name, 'Eva Klein'); ok('leading formula characters stripped');
+  r = await call(apply, { body: { fullname: '=HYPERLINK("http://evil","x")', email: 'evil2@x.de', level: 'A0' } });
+  assert.strictEqual(r.code, 400); assert.strictEqual(r.body.field, 'fullname'); ok('a formula instead of a name is refused (400)');
   r = await call(apply, { body: { fullname: 'Bot', email: 'bot@x.de', level: 'A0', website: 'http://spam' } }); assert.strictEqual(r.code, 200); assert.ok(!r.body.user);
   assert.strictEqual((await db.query("SELECT 1 FROM users WHERE email='bot@x.de'", [])).length, 0); ok('honeypot: fake "ok", nothing stored');
   for (const bad of [{ fullname: '', email: 'a@b.de', level: 'A1' }, { fullname: 'A', email: 'nope', level: 'A1' }, { fullname: 'A', email: 'a@b.de', level: 'Z9' }]) assert.strictEqual((await call(apply, { body: bad })).code, 400);
@@ -82,7 +85,7 @@ const cookieOf = (r) => (r.headers['set-cookie'] || '').split(';')[0];
   assert.strictEqual((await call(me, { method: 'GET', cookie: delCookie })).code, 401); assert.strictEqual((await db.query("SELECT 1 FROM users WHERE email='del@x.de'", [])).length, 0); ok('account deletion removes the data; old cookie stops working');
 
   console.log('Sign-up limits & admin');
-  let last; for (let i = 0; i < 12; i++) last = await call(apply, { body: { fullname: 'N' + i, email: `n${i}@x.de`, level: 'A1' }, ip: '8.8.8.8' });
+  let last; for (let i = 0; i < 12; i++) last = await call(apply, { body: { fullname: 'Nora ' + ['Abel', 'Brandt', 'Conrad', 'Dietz', 'Engel', 'Fuchs', 'Graf', 'Haas', 'Imhof', 'Jung', 'Kraus', 'Lange'][i], email: `n${i}@x.de`, level: 'A1' }, ip: '8.8.8.8' });
   assert.strictEqual(last.code, 429); ok('more than 10 sign-ups/hour from one device: 429');
   assert.strictEqual((await call(admin, { method: 'GET' })).code, 401); ok('admin export refuses requests without the key (401)');
   assert.strictEqual((await call(admin, { method: 'GET', headers: { authorization: 'Bearer wrong' } })).code, 401); ok('wrong key refused (401)');

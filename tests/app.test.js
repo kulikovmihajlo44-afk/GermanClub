@@ -1,5 +1,6 @@
 // Tests for the member app API (placement scoring, onboarding, lessons, FSRS cards, isolation, erasure) on real Postgres (PGlite).
-// Run:  NODE_PATH=/opt/data/cache/scratch/npmtest/node_modules node tests/app.test.js
+// Run:  node tests/app.test.js   (needs: npm install && npm install --no-save @electric-sql/pglite)
+process.env.DK_DNS_OFFLINE = '1';                 // no real DNS lookups in tests (see tests/validate.test.js)
 const assert = require('assert');
 const path = require('path');
 const { PGlite } = require('@electric-sql/pglite');

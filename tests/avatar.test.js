@@ -1,5 +1,6 @@
 // Tests for the member card avatar (POST ?a=avatar, profile.avatar) on real Postgres (PGlite).
 // Run:  node tests/avatar.test.js   (needs: npm install && npm install --no-save @electric-sql/pglite)
+process.env.DK_DNS_OFFLINE = '1';                 // no real DNS lookups in tests (see tests/validate.test.js)
 const assert = require('assert');
 const path = require('path');
 const { PGlite } = require('@electric-sql/pglite');
@@ -26,7 +27,7 @@ async function signup(name, email) { const r = await call(apply, { body: { fulln
 
 (async () => {
   console.log('Member card avatar');
-  const mia = await signup('Mia', 'mia@example.com'), tom = await signup('Tom', 'tom@example.com');
+  const mia = await signup('Mia Lang', 'mia@example.com'), tom = await signup('Tom Weber', 'tom@example.com');
   let r = await A('state', { cookie: mia }); assert.strictEqual(r.body.profile.avatar, null); ok('a new member has no avatar yet (the card asks for one)');
   r = await A('avatar', { cookie: mia, body: { avatar: 'kugel' } }); assert.strictEqual(r.code, 200); assert.strictEqual(r.body.profile.avatar, 'kugel');
   r = await A('state', { cookie: mia }); assert.strictEqual(r.body.profile.avatar, 'kugel'); ok('choosing an avatar is saved and returned in state');
@@ -41,10 +42,11 @@ async function signup(name, email) { const r = await call(apply, { body: { fulln
   console.log('Name on the card');
   r = await A('name', { cookie: mia, body: { name: '  Mia Schulz ' } }); assert.strictEqual(r.code, 200);
   r = await A('state', { cookie: mia }); assert.strictEqual(r.body.user.full_name, 'Mia Schulz'); ok('the name can be changed (trimmed)');
-  r = await A('name', { cookie: mia, body: { name: '=HYPERLINK("x")' } }); r = await A('state', { cookie: mia }); assert.ok(!r.body.user.full_name.startsWith('=')); ok('formula characters at the start are removed, as at sign-up');
+  r = await A('name', { cookie: mia, body: { name: '=HYPERLINK("x")' } }); assert.strictEqual(r.code, 400); r = await A('state', { cookie: mia }); assert.strictEqual(r.body.user.full_name, 'Mia Schulz'); ok('a formula instead of a name is refused, as at sign-up');
+  r = await A('name', { cookie: mia, body: { name: 'mia SCHULZ' } }); r = await A('state', { cookie: mia }); assert.strictEqual(r.body.user.full_name, 'Mia Schulz'); ok('capitals are tidied (mia SCHULZ -> Mia Schulz)');
   r = await A('name', { cookie: mia, body: { name: ' ' } }); assert.strictEqual(r.code, 400); ok('an empty name is refused (400)');
   r = await A('name', { body: { name: 'Eve' } }); assert.strictEqual(r.code, 401);
-  r = await A('state', { cookie: tom }); assert.strictEqual(r.body.user.full_name, 'Tom'); ok("logged-out requests are refused and other members are untouched");
+  r = await A('state', { cookie: tom }); assert.strictEqual(r.body.user.full_name, 'Tom Weber'); ok("logged-out requests are refused and other members are untouched");
   console.log(`\nAvatar + name: ${passed} checks passed`);
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });

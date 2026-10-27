@@ -45,8 +45,8 @@
   --hairline: rgba(237, 237, 237, 0.14);
   --hairline-soft: rgba(237, 237, 237, 0.08);
   --grid: rgba(237, 237, 237, 0.04);
-  --danger: var(--danger); --danger-rgb: 255, 138, 122;
-  --ok: var(--ok); --warn: var(--warn); --info: var(--info);
+  --danger: #ff8a7a; --danger-rgb: 255, 138, 122;
+  --ok: #7fd6a0; --warn: #ffcf7a; --info: #8ec9ff;
   color-scheme: dark;
 }
 :root {
@@ -572,3 +572,13 @@ dialog.dk-dialog::backdrop { background: rgba(var(--bg-rgb), 0.7); backdrop-filt
 .oauth-login .or::before, .oauth-login .or::after { content: ""; flex: 1; height: 1px; background: var(--hairline-soft); }
 .use-oauth .field[hidden] { display: none; }
 .apply-form [hidden] { display: none !important; }
+
+/* ---- live field checks (join form, member card) ---- */
+.field-msg { min-height: 0; margin-top: 0.4rem; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; }
+.field-msg:empty { margin-top: 0; }
+.field-msg.err { color: var(--danger); }
+.field-msg.ok { color: var(--ok); }
+.field-msg.warn { color: var(--ink); }
+.field input[aria-invalid="true"], .a-field input[aria-invalid="true"] { border-color: var(--danger); }
+.msg-btn { font: inherit; font-size: 0.7rem; border: 1px solid var(--ink); background: var(--ink); color: var(--bg); border-radius: 6px; padding: 0.15rem 0.5rem; cursor: pointer; }
+.msg-btn.ghost { background: transparent; color: var(--ink); border-color: var(--hairline); }

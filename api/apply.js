@@ -4,6 +4,8 @@ const db = require('../lib/db');
 const H = require('../lib/http');
 const { generateId } = require('../lib/ids');
 const O = require('../lib/oauth');
+const V = require('../assets/validate');
+const { checkEmail } = require('../lib/emailcheck');
 
 const noFormula = (v) => String(v || '').trim().replace(/^[\s=+\-@]+/, '').trim();   // spreadsheet-formula safety
 
@@ -33,12 +35,18 @@ module.exports = H.handler(async (req, res) => {
   const body = H.readBody(req);
   if (body.website) return H.send(res, 200, { ok: true });                    // honeypot: pretend success to bots
 
-  const fullname = noFormula(body.fullname).slice(0, 120);
-  const email = noFormula(body.email).slice(0, 200).toLowerCase();
+  // the same checks the form runs in the browser (assets/validate.js), plus a DNS check that the domain receives mail
   const level = String(body.level || '').trim().toUpperCase();
-  if (!fullname || !H.EMAIL_RE.test(email) || !H.LEVELS.includes(level)) {
-    return H.send(res, 400, { ok: false, error: 'Please check your name, e-mail and level.' });
+  const nm = V.name(noFormula(body.fullname).slice(0, 120));
+  if (!nm.ok) return H.send(res, 400, { ok: false, field: 'fullname', error: nm.error });
+  const em = await checkEmail(noFormula(body.email).slice(0, 254));
+  if (!em.ok) return H.send(res, 400, { ok: false, field: 'email', error: em.error, suggestion: em.suggestion || undefined });
+  // a likely typo of a common provider (gmial.com): ask once; "keep mine" sends email_confirmed=1
+  if (em.suggestion && String(body.email_confirmed || '') !== '1') {
+    return H.send(res, 400, { ok: false, field: 'email', typo: true, suggestion: em.suggestion, error: `Did you mean ${em.suggestion}?` });
   }
+  if (!H.LEVELS.includes(level)) return H.send(res, 400, { ok: false, field: 'level', error: 'Please choose your level.' });
+  const fullname = nm.value, email = em.value;
 
   if (!db.configured()) return legacySheet(req, res, fullname, email, level);
 

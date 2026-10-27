@@ -19,6 +19,7 @@ const H = require('../lib/http');
 const P = require('../lib/placement');
 const F = require('../lib/fsrs');
 const { formatId } = require('../lib/ids');
+const V = require('../assets/validate');
 
 const NEW_PER_DAY = 10;
 const GOALS = ['goethe', 'career', 'interest'];
@@ -167,8 +168,9 @@ module.exports = H.handler(async (req, res) => {
   }
 
   if (a === 'name' && isPost) {
-    const name = str(body.name, 120).replace(/^[\s=+\-@]+/, '').trim();   // like sign-up: no spreadsheet formulas
-    if (name.length < 2) return bad(res, 'Please enter your name.');
+    const nm = V.name(str(body.name, 120));                            // same rules as at sign-up (assets/validate.js)
+    if (!nm.ok) return bad(res, nm.error);
+    const name = nm.value;
     await db.query(`UPDATE users SET full_name = $2 WHERE id = $1`, [uid, name]);
     return H.send(res, 200, { ok: true, name });
   }

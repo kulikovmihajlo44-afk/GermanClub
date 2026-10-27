@@ -1,5 +1,6 @@
 // Sign up / log in with Google or Microsoft, so a new member's e-mail address is confirmed by its provider.
 //   GET /api/auth?a=providers                                  -> { google: bool, microsoft: bool }
+//   GET /api/auth?a=check-email&email=…                        -> { valid, error, suggestion }  (live form check)
 //   GET /api/auth?a=start&p=google|microsoft&intent=signup|login&level=A0..C1&next=/app/...  -> 302 to the provider
 //   GET /auth/callback?code=…&state=…   (rewritten to this function)  -> session cookie, 302 into the app
 // A short-lived signed cookie carries state, PKCE verifier and nonce between the two legs.
@@ -8,6 +9,8 @@ const db = require('../lib/db');
 const H = require('../lib/http');
 const O = require('../lib/oauth');
 const { generateId } = require('../lib/ids');
+const V = require('../assets/validate');
+const { checkEmail } = require('../lib/emailcheck');
 
 const FLOW = 'dk_oauth';
 const noFormula = (v) => String(v || '').trim().replace(/^[\s=+\-@]+/, '').trim();
@@ -34,6 +37,17 @@ module.exports = H.handler(async (req, res) => {
   if (a === 'providers') {
     const on = db.configured() ? O.enabled() : [];
     return H.send(res, 200, { ok: true, google: on.includes('google'), microsoft: on.includes('microsoft') });
+  }
+
+  // live check while the visitor types: format, throw-away inbox, typo hint and whether the domain receives mail
+  if (a === 'check-email') {
+    if (db.configured()) {
+      const ipk = await H.ipKey(req);
+      if (await H.count('chk', ipk, 10) >= 60) return H.send(res, 429, { ok: false, error: 'Too many checks — please wait a moment.' });
+      await H.record('chk', ipk);
+    }
+    const r = await checkEmail(String(q.get('email') || '').slice(0, 254));
+    return H.send(res, 200, { ok: true, valid: !!r.ok, error: r.error || null, suggestion: r.suggestion || null });
   }
 
   if (a === 'start') {
@@ -72,7 +86,8 @@ module.exports = H.handler(async (req, res) => {
       const ipk = await H.ipKey(req);
       if (await H.count('reg', ipk, 60) >= 10) return fail(res, 'ratelimit');
       await H.record('reg', ipk);
-      const name = noFormula(who.name).slice(0, 120) || who.email.split('@')[0];
+      const nm = V.name(noFormula(who.name).slice(0, 120));
+      const name = nm.ok ? nm.value : (noFormula(who.name).slice(0, 120) || who.email.split('@')[0]);   // editable later on the card
       for (let attempt = 0; attempt < 6 && !userId; attempt++) {
         const rows = await db.query(
           `INSERT INTO users (id, full_name, email, level, last_login, auth_provider, email_verified_at) VALUES ($1, $2, $3, $4, now(), $5, now())
