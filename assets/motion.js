@@ -68,6 +68,28 @@
     Array.prototype.forEach.call(targets, function (el) { io.observe(el); });
   }
 
+  // ---------- level scale: hover / click shows the level; it steps through on its own until someone interacts ----------
+  each("[data-scale]", function (sc) {
+    var btns = sc.querySelectorAll("button"), info = sc.querySelector(".scale-info"), cur = 0, timer = 0, touched = false;
+    function pick(i) {
+      cur = i;
+      Array.prototype.forEach.call(btns, function (b, j) { b.classList.toggle("on", j === i); b.setAttribute("aria-selected", String(j === i)); });
+      info.innerHTML = btns[i].getAttribute("data-desc");
+    }
+    Array.prototype.forEach.call(btns, function (b, i) {
+      b.addEventListener("mouseenter", function () { touched = true; pick(i); });
+      b.addEventListener("click", function () { touched = true; pick(i); });
+      b.addEventListener("focus", function () { touched = true; pick(i); });
+    });
+    pick(0);
+    if (!reduce && "IntersectionObserver" in window) {
+      new IntersectionObserver(function (en) {
+        clearInterval(timer);
+        if (en[0].isIntersecting && !touched) timer = setInterval(function () { if (touched) return clearInterval(timer); pick((cur + 1) % btns.length); }, 2200);
+      }, { threshold: 0.4 }).observe(sc);
+    }
+  });
+
   // ---------- scroll progress ----------
   var bar = document.querySelector(".progress"), ticking = false;
   function onScroll() {

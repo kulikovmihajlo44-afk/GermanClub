@@ -5,6 +5,7 @@
 //   POST ?a=beginner         (logged in) sets the level to A0 - no test needed
 //   POST ?a=test.submit      {seq:[20 ids in the order asked], answers:{id:index|-1}}  -> {level, points, border, skills, score, total, saved}   (public; saved only when logged in)
 //   POST ?a=onboarding       {goal, interests[], minutes, exam_date?}
+//   POST ?a=avatar           {avatar: ring|kugel|wuerfel}  the picture on the member card
 //   POST ?a=lesson.done      {topic, score, total}
 //   POST ?a=cards.add        {deck, source?, cards:[{front, back, example?}]}
 //   GET  ?a=cards.due        today's queue (learning/review cards due + up to NEW_PER_DAY new ones)
@@ -22,17 +23,18 @@ const NEW_PER_DAY = 10;
 const GOALS = ['goethe', 'career', 'interest'];
 const INTERESTS = ['music', 'film', 'travel', 'science', 'sport', 'food', 'tech', 'history', 'art', 'business'];
 const MINUTES = [5, 10, 15, 20, 30, 45, 60];
+const AVATARS = ['ring', 'kugel', 'wuerfel'];
 const str = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 const bad = (res, msg) => H.send(res, 400, { ok: false, error: msg || 'Invalid request' });
 const lvlOk = (l) => /^(A0|A1|A2|B1|B2|C1)$/.test(l);
 
 async function profileOf(userId) {
   const r = await db.query(
-    `SELECT goal, interests, minutes_per_day, exam_date, onboarded_at FROM users WHERE id = $1`, [userId]);
+    `SELECT goal, interests, minutes_per_day, exam_date, onboarded_at, avatar FROM users WHERE id = $1`, [userId]);
   const u = r[0] || {};
   return { goal: u.goal || null, interests: u.interests || [], minutes: u.minutes_per_day || null,
            exam_date: u.exam_date ? String(u.exam_date.toISOString ? u.exam_date.toISOString().slice(0, 10) : u.exam_date).slice(0, 10) : null,
-           onboarded: !!u.onboarded_at };
+           onboarded: !!u.onboarded_at, avatar: AVATARS.includes(u.avatar) ? u.avatar : null };
 }
 async function latestPlacement(userId) {
   const r = await db.query(
@@ -153,6 +155,13 @@ module.exports = H.handler(async (req, res) => {
     }
     await db.query(`UPDATE users SET goal = $2, interests = $3::jsonb, minutes_per_day = $4, exam_date = $5, onboarded_at = COALESCE(onboarded_at, now()) WHERE id = $1`,
       [uid, goal, JSON.stringify(uniq), minutes, exam]);
+    return H.send(res, 200, { ok: true, profile: await profileOf(uid) });
+  }
+
+  if (a === 'avatar' && isPost) {
+    const avatar = str(body.avatar, 20);
+    if (!AVATARS.includes(avatar)) return bad(res, 'Please choose one of the avatars.');
+    await db.query(`UPDATE users SET avatar = $2 WHERE id = $1`, [uid, avatar]);
     return H.send(res, 200, { ok: true, profile: await profileOf(uid) });
   }
 

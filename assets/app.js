@@ -173,23 +173,38 @@
       if (ev && DKA.daysUntil(ev) <= 7) today.push({ t: "Club: " + DKA.fmtDate(ev), sub: DKA.club.start + "–" + DKA.club.end + " · " + DKA.club.venue, href: "/app/club", cta: "Details" });
       today = today.slice(0, 3);
       var p = s.placement, pr = s.profile;
-      var facts = [h("span", { "class": "a-badge", text: "Level " + p.level })];
-      if (pr.goal) facts.push(h("span", { "class": "a-badge", text: DKA.goalName(pr.goal) }));
-      if (pr.minutes) facts.push(h("span", { "class": "a-badge", text: pr.minutes + " min / day" }));
-      if (pr.exam_date && DKA.daysUntil(pr.exam_date) >= 0) facts.push(h("span", { "class": "a-badge", text: "Exam in " + DKA.daysUntil(pr.exam_date) + " days" }));
-      root.appendChild(h("div", { "class": "a-wrap" }, [
-        h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Dashboard"]),
-        h("h1", { "class": "a-h1", text: "Welcome, " + s.user.full_name }),
-        h("div", { "class": "a-badges" }, facts),
-        p.declared
-          ? h("p", { "class": "a-muted a-small" }, ["You chose to start at A0 (absolute beginner), so no placement test is needed. ", DKA.link("/test", "Take the placement test anyway", "lnk")])
-          : h("p", { "class": "a-muted a-small", text: "Placement result: " + Object.keys(p.skills).map(function (k) { return DKA.skillName(k) + " " + p.skills[k]; }).join(" · ") + " (indicative, not an official certificate)." }),
-        h("h2", { "class": "a-h2", text: "Today" }),
-        today.length ? h("div", { "class": "a-today" }, today.map(function (it) {
-          return h("a", { "class": "a-item", href: it.href, "data-link": "" }, [h("div", null, [h("strong", { text: it.t }), h("span", { text: it.sub })]), h("em", { text: it.cta + " →" })]);
-        })) : h("div", { "class": "a-card" }, [h("p", { "class": "a-muted", text: "Nothing is due. You have finished every available lesson; new ones are on the way. Come back tomorrow for your cards." })]),
-        ev ? h("div", { "class": "a-card a-next" }, [h("p", { "class": "eyebrow", text: "Next club session" }), h("p", { "class": "a-big", text: DKA.fmtDate(ev) }),
-          h("p", { "class": "a-muted", text: DKA.club.start + "–" + DKA.club.end + " · " + DKA.club.venue }), DKA.link("/app/club", "Club details", "btn-line")]) : null]));
+      var hr = new Date().getHours(), hello = hr < 11 ? "Guten Morgen" : hr < 18 ? "Guten Tag" : "Guten Abend";
+      var LV = ["A0", "A1", "A2", "B1", "B2", "C1"], li = Math.max(0, LV.indexOf(p.level));
+      var scale = h("div", { "class": "d-scale", style: "--lv:" + li, "aria-label": "Your level on the scale A0 to C1: " + p.level }, [
+        h("div", { "class": "d-track", "aria-hidden": "true" }, [h("i")]),
+        h("div", { "class": "d-marks", "aria-hidden": "true" }, LV.map(function (l, i) { return h("span", { "class": i === li ? "on" : i < li ? "past" : "", text: l }); }))]);
+      var days = ev ? Math.max(0, DKA.daysUntil(ev)) : null;
+      var stats = h("div", { "class": "d-stats" }, [
+        [s.cards.due, "cards due now"], [s.lessons.length, "lessons finished"], [days === null ? "–" : days, days === null ? "no session planned" : days === 0 ? "club is today" : "days to the club"]
+      ].map(function (x) { return h("div", { "class": "d-stat" }, [h("b", { "data-to": typeof x[0] === "number" ? String(x[0]) : null, text: String(x[0]) }), h("span", { text: x[1] })]); }));
+      var card = DKA.memberCard ? DKA.memberCard(s) : null;
+      root.appendChild(h("div", { "class": "a-wrap d-wrap" }, [
+        h("div", { "class": "d-main" }, [
+          h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), "Dashboard"]),
+          h("h1", { "class": "a-h1 d-hello" }, [h("em", { text: hello + "," }), " " + s.user.full_name.split(" ")[0] + "."]),
+          p.declared
+            ? h("p", { "class": "a-muted a-small" }, ["You started at A0 (absolute beginner). ", DKA.link("/test", "Take the placement test anyway", "lnk")])
+            : h("p", { "class": "a-muted a-small", text: Object.keys(p.skills).map(function (k) { return DKA.skillName(k) + " " + p.skills[k]; }).join(" · ") + " — placement result, indicative." }),
+          scale, stats,
+          h("h2", { "class": "a-h2", text: "Today" }),
+          today.length ? h("div", { "class": "a-today d-today" }, today.map(function (it, i) {
+            return h("a", { "class": "a-item", href: it.href, "data-link": "", style: "--i:" + i }, [h("div", null, [h("strong", { text: it.t }), h("span", { text: it.sub })]), h("em", { text: it.cta + " →" })]);
+          })) : h("div", { "class": "a-card" }, [h("p", { "class": "a-muted", text: "Nothing is due. You have finished every available lesson; new ones are on the way. Come back tomorrow for your cards." })])]),
+        card ? h("aside", { "class": "d-side" }, [card, h("button", { type: "button", "class": "d-avatar", text: "Change avatar", onclick: function () { DKA.cardReveal({ picker: true, onDone: function () { DKA.nav("/app", true); } }); } })]) : null]));
+      // numbers count up once
+      Array.prototype.forEach.call(root.querySelectorAll("[data-to]"), function (el) {
+        var to = +el.getAttribute("data-to"), t0 = performance.now();
+        if (!to || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+        (function f(now) { var k = Math.min(1, (now - t0) / 900); el.textContent = String(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(f); })(t0);
+      });
+      // profile complete (sign-up + test + questions) but no avatar yet: the member card flies in once
+      var later = false; try { later = sessionStorage.getItem("dk_card_later") === "1"; } catch (e) {}
+      if (DKA.cardReveal && !pr.avatar && !later) setTimeout(function () { if (root.isConnected) DKA.cardReveal({ onDone: function () { DKA.nav("/app", true); } }); }, 700);
     });
   });
 

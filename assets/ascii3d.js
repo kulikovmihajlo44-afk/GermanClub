@@ -4,7 +4,8 @@
 // (2 × 3 per character) and every character cell gets the glyph whose *shape* best matches its sub-cells —
 // columns become |, cornices _ = -, diagonals / \ — which keeps the drawing crisp instead of noisy.
 // Objects scan in line by line when they first appear, sway around their facade and can be dragged to any angle.
-// Usage: <pre class="ascii" data-src="/assets/img/x.webp"> with optional data-: size (font px), res (sample width),
+// Usage: <pre class="ascii" data-src="/assets/img/x.webp"> or data-shape="ring|kugel|wuerfel" (avatars; lit, spinning);
+// optional data-: size (font px), res (sample width),
 // speed (rad/s), yaw, pitch, floor ("1" adds a ring plaza), fps. No libraries; only on-screen objects are rendered;
 // with reduced motion every object is drawn once, standing still.
 (function () {
@@ -12,7 +13,7 @@
   var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   var lowPower = Math.min(innerWidth, innerHeight) < 700 || (navigator.hardwareConcurrency || 8) <= 4;
   var CAM = 4.2, DEPTH = 0.13, all = [], clouds = {}, raf = 0;
-  var SCAN = "▓▒░/\\|_-=+", NOISE = "01";
+  var SCAN = "▓▒░/\\|_-=+", NOISE = "01", TONES = ".,-~:;=!*#$@";   // TONES: lit shapes, like donut.c
 
   // ---------- glyph shapes: coverage of [top-left, top-right, mid-left, mid-right, bottom-left, bottom-right] ----------
   var GLYPHS = [
@@ -80,11 +81,48 @@
             var ring = 1 + (j % 4), a = (j / ringPts) * Math.PI * 2 * 4 + ring, rad = 0.4 * ring + 0.15;
             pts[o++] = Math.cos(a) * rad; pts[o++] = -half - 0.04; pts[o++] = Math.sin(a) * rad * 0.85; pts[o++] = 0.55 - ring * 0.08;
           }
-          resolve({ pts: pts, count: total, h: half * 2 });
+          resolve({ pts: pts, count: total, h: half * 2, stride: 4, lit: false });
         } catch (e) { reject(e); }
       };
       img.src = src;
     });
+    return clouds[key];
+  }
+
+  // ---------- procedural shapes for the avatars: points carry surface normals and are lit + depth-tested ----------
+  function shapeCloud(name) {
+    var key = "shape|" + name;
+    if (clouds[key]) return clouds[key];
+    var P = [], TAU = Math.PI * 2;
+    function add(x, y, z, w, nx, ny, nz) { P.push(x, y, z, w, nx, ny, nz, 0); }
+    if (name === "ring") {                                          // torus ("Ring"), a nod to donut.c
+      var R = 0.6, r = 0.3;
+      for (var i = 0; i < 160; i++) for (var j = 0; j < 56; j++) {
+        var u = i / 160 * TAU, v = j / 56 * TAU, cu = Math.cos(u), su = Math.sin(u), cv = Math.cos(v), sv = Math.sin(v);
+        add((R + r * cv) * cu, r * sv, (R + r * cv) * su, 1, cv * cu, sv, cv * su);
+      }
+    } else if (name === "kugel") {                                  // globe ("Kugel") with latitude / longitude lines
+      var n = 5200, ga = Math.PI * (3 - Math.sqrt(5));
+      for (i = 0; i < n; i++) {
+        var yy = 1 - (i / (n - 1)) * 2, rr = Math.sqrt(1 - yy * yy), th = ga * i, x = Math.cos(th) * rr, z = Math.sin(th) * rr;
+        var lat = Math.asin(yy) * 180 / Math.PI, lon = Math.atan2(z, x) * 180 / Math.PI + 180;
+        var line = Math.abs(lat % 30) < 2.2 || Math.abs(lon % 30) < 2.2 || Math.abs(lon % 30) > 27.8;
+        add(x * 0.85, yy * 0.85, z * 0.85, line ? 1 : 0.42, x, yy, z);
+      }
+    } else {                                                        // cube ("Würfel") with a 3 × 3 grid on every face
+      var g = 40, hs = 0.58;
+      var faces = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+      faces.forEach(function (f) {
+        for (var a = 0; a <= g; a++) for (var b = 0; b <= g; b++) {
+          var s1 = (a / g) * 2 - 1, s2 = (b / g) * 2 - 1, edge = Math.abs(s1) > 0.95 || Math.abs(s2) > 0.95;
+          var grid = Math.abs(Math.abs(s1) - 1 / 3) < 0.03 || Math.abs(Math.abs(s2) - 1 / 3) < 0.03;
+          var c = f[0] ? [f[0], s1, s2] : f[1] ? [s1, f[1], s2] : [s1, s2, f[2]];
+          add(c[0] * hs, c[1] * hs, c[2] * hs, edge ? 1 : grid ? 0.8 : 0.4, f[0], f[1], f[2]);
+        }
+      });
+    }
+    var pts = new Float32Array(P);
+    clouds[key] = Promise.resolve({ pts: pts, count: pts.length / 8, h: 1.75, stride: 8, lit: true });
     return clouds[key];
   }
 
@@ -100,9 +138,10 @@
     this.fps = parseFloat(ds.fps) || (lowPower ? 20 : 30);
     this.floor = ds.floor === "1";
     this.visible = false; this.shown = 0; this.last = 0; this.frames = 0; this.fpsT = 0;
-    this.drag = null; this.cloud = null; this.vp = el.closest(".viewport, .lm");
+    this.shape = ds.shape || ""; this.basePitch = this.pitch;
+    this.drag = null; this.cloud = null; this.vp = el.closest(".viewport, .lm, [data-stats]");
     var self = this;
-    cloudFor(ds.src, this.res, this.floor).then(function (c) { self.cloud = c; self.measure(); self.draw(performance.now(), true); }, function () {});
+    (this.shape ? shapeCloud(this.shape) : cloudFor(ds.src, this.res, this.floor)).then(function (c) { self.cloud = c; self.measure(); self.draw(performance.now(), true); }, function () {});
     this.bindPointer();
   }
   Inst.prototype.measure = function () {
@@ -115,6 +154,7 @@
     this.cols = Math.max(8, Math.floor(el.clientWidth / this.cw));
     this.rows = Math.max(6, Math.floor(el.clientHeight / this.lh));
     this.sub = new Float32Array(this.cols * 2 * this.rows * 3);
+    this.zb = new Float32Array(this.sub.length);
     var aspect = this.cw / this.lh, h = this.cloud ? this.cloud.h + (this.floor ? 0.25 : 0) : 1.4;
     this.sx = Math.min(this.cols * 0.38, (this.rows * 0.84) / (h * aspect));   // character cells per unit (x)
     this.sy = this.sx * aspect;
@@ -136,22 +176,37 @@
     if (!force && now - this.last < 1000 / this.fps) return;
     var dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0;
     this.last = now;
-    if (!reduce && !this.drag) { this.phase += Math.abs(this.speed) * dt; this.yaw = this.center + Math.sin(this.phase) * 0.6 * (this.speed < 0 ? -1 : 1); }
+    if (!reduce && !this.drag) {
+      this.phase += Math.abs(this.speed) * dt;
+      if (this.shape) { this.yaw += this.speed * dt; this.pitch = this.basePitch + Math.sin(this.phase * 0.7) * 0.35; }   // avatars spin
+      else this.yaw = this.center + Math.sin(this.phase) * 0.6 * (this.speed < 0 ? -1 : 1);                               // landmarks sway
+    }
     if (!this.shown && this.visible) this.shown = now;
 
     var cols = this.cols, rows = this.rows, SWc = cols * 2, SHc = rows * 3, sub = this.sub, pts = this.cloud.pts, N = this.cloud.count;
     sub.fill(0);
+    var lit = this.cloud.lit, st = this.cloud.stride || 4, zb = this.zb;
+    if (lit) zb.fill(-1e9);
     var cY = Math.cos(this.yaw), sY = Math.sin(this.yaw), cP = Math.cos(this.pitch), sP = Math.sin(this.pitch);
     var ox = cols, oy = rows * 1.5, sx = this.sx * 2, sy = this.sy * 3;
-    for (var i = 0, o = 0; i < N; i++, o += 4) {
+    for (var i = 0, o = 0; i < N; i++, o += st) {
       var x = pts[o], y = pts[o + 1], z = pts[o + 2];
       var x1 = x * cY + z * sY, z1 = -x * sY + z * cY;
       var y1 = y * cP - z1 * sP, z2 = y * sP + z1 * cP;
       var k = CAM / (CAM - z2);
       var ix = (ox + x1 * k * sx) | 0, iy = (oy - y1 * k * sy) | 0;
       if (ix < 0 || iy < 0 || ix >= SWc || iy >= SHc) continue;
-      var idx = iy * SWc + ix, w = pts[o + 3] * (0.6 + 0.4 * (z2 + 1.2) / 2.4);
-      if (w > sub[idx]) sub[idx] = w;          // strongest point per sub-cell: crisp lines, no blobs where points pile up
+      var idx = iy * SWc + ix, w;
+      if (lit) {                               // shapes: nearest point wins, brightness from a light at the top left front
+        if (z2 <= zb[idx]) continue;
+        var nx = pts[o + 4], ny = pts[o + 5], nz = pts[o + 6];
+        var nx1 = nx * cY + nz * sY, nz1 = -nx * sY + nz * cY, ny1 = ny * cP - nz1 * sP, nz2 = ny * sP + nz1 * cP;
+        var dif = -0.45 * nx1 + 0.55 * ny1 + 0.7 * nz2;
+        zb[idx] = z2; sub[idx] = pts[o + 3] * (0.12 + 0.88 * Math.max(0, dif));
+      } else {
+        w = pts[o + 3] * (0.6 + 0.4 * (z2 + 1.2) / 2.4);
+        if (w > sub[idx]) sub[idx] = w;        // strongest point per sub-cell: crisp lines, no blobs where points pile up
+      }
     }
     var inv = 1 / 1.1;
     var scan = reduce ? rows + 2 : this.shown ? Math.min(rows + 2, (now - this.shown) / 1300 * (rows + 4)) : -1;
@@ -162,10 +217,15 @@
       for (var c = 0; c < cols; c++) {
         var a = b0 + c * 2;
         var s0 = sub[a], s1 = sub[a + 1], s2 = sub[a + SWc], s3 = sub[a + SWc + 1], s4 = sub[a + 2 * SWc], s5 = sub[a + 2 * SWc + 1];
-        if (s0 + s1 + s2 + s3 + s4 + s5 === 0) { line += edge && Math.random() < 0.05 ? SCAN[(Math.random() * SCAN.length) | 0] : " "; continue; }
+        if (s0 + s1 + s2 + s3 + s4 + s5 < 0.02) { line += edge && Math.random() < 0.05 ? SCAN[(Math.random() * SCAN.length) | 0] : " "; continue; }
         if (edge) { line += SCAN[(Math.random() * SCAN.length) | 0]; continue; }
-        var code = lv(s0 * inv) + Q * (lv(s1 * inv) + Q * (lv(s2 * inv) + Q * (lv(s3 * inv) + Q * (lv(s4 * inv) + Q * lv(s5 * inv)))));
-        var ch = LUT[code];
+        var ch;
+        if (lit) {                             // smooth lit surfaces read best as a tone ramp
+          var avg = (s0 + s1 + s2 + s3 + s4 + s5) / 6;
+          ch = TONES[Math.min(TONES.length - 1, Math.round(Math.pow(Math.min(1, avg * 1.15), 0.85) * (TONES.length - 1)))];
+        } else {                               // line drawings: the glyph whose shape matches the sub-cells
+          ch = LUT[lv(s0 * inv) + Q * (lv(s1 * inv) + Q * (lv(s2 * inv) + Q * (lv(s3 * inv) + Q * (lv(s4 * inv) + Q * lv(s5 * inv)))))];
+        }
         if (ch === " ") ch = ".";
         line += !reduce && Math.random() < 0.0015 ? NOISE[(Math.random() * 2) | 0] : ch;
       }
@@ -191,26 +251,32 @@
   function loop(now) {
     raf = 0;
     var any = false;
+    all = all.filter(function (x) { return x.el.isConnected; });
     for (var i = 0; i < all.length; i++) if (all[i].visible && !document.hidden) { all[i].draw(now); any = true; }
     if (any) raf = requestAnimationFrame(loop);
   }
   function kick() { if (!raf && !reduce) raf = requestAnimationFrame(loop); }
 
+  var io = null, ro = null;
+  function mount(el) {
+    if (el._ascii) return el._ascii;
+    var inst = new Inst(el); el._ascii = inst; all.push(inst);
+    if (io) io.observe(el); else inst.visible = true;
+    if (ro) ro.observe(el);
+    kick();
+    return inst;
+  }
+  window.DKAscii = { mount: mount, reduce: reduce };
   function init() {
-    var els = document.querySelectorAll("pre.ascii[data-src]");
-    if (!els.length) return;
-    var io = "IntersectionObserver" in window ? new IntersectionObserver(function (en) {
+    var els = document.querySelectorAll("pre.ascii[data-src], pre.ascii[data-shape]");
+    io = "IntersectionObserver" in window ? new IntersectionObserver(function (en) {
       en.forEach(function (e) { var inst = e.target._ascii; if (!inst) return; inst.visible = e.isIntersecting; if (e.isIntersecting) { inst.last = 0; if (reduce) inst.draw(performance.now(), true); } });
       kick();
     }, { rootMargin: "60px" }) : null;
-    var ro = "ResizeObserver" in window ? new ResizeObserver(function (en) {
+    ro = "ResizeObserver" in window ? new ResizeObserver(function (en) {
       en.forEach(function (e) { var inst = e.target._ascii; if (inst && inst.cloud) { inst.measure(); inst.draw(performance.now(), true); } });
     }) : null;
-    Array.prototype.forEach.call(els, function (el) {
-      var inst = new Inst(el); el._ascii = inst; all.push(inst);
-      if (io) io.observe(el); else inst.visible = true;
-      if (ro) ro.observe(el);
-    });
+    Array.prototype.forEach.call(els, mount);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { all.forEach(function (x) { if (x.cloud) { x.measure(); x.draw(performance.now(), true); } }); });
     document.addEventListener("visibilitychange", kick);
     kick();
