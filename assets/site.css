@@ -155,7 +155,7 @@ h1 em, h2 em { font-style: normal; color: var(--faint); }
 .logo { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--ink); }
 .logo-mark {
   width: 34px; height: 28px; flex: none;
-  background: url(/assets/img/logo-mark.png) center / contain no-repeat;
+  background: url(/assets/img/logo-mark.png?v=2) center / contain no-repeat;
   filter: invert(1);                 /* the emblem file is white: dark on the light theme */
 }
 [data-theme="dark"] .logo-mark { filter: none; }
