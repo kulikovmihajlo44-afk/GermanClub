@@ -554,3 +554,21 @@ dialog.dk-dialog::backdrop { background: rgba(var(--bg-rgb), 0.7); backdrop-filt
 .copy-btn { border-radius: 8px; font-family: var(--mono); letter-spacing: 0.02em; text-transform: none; font-weight: 500; }
 .toast { background: var(--ink); color: var(--bg); font-family: var(--mono); font-weight: 500; }
 .privacy { text-transform: none; letter-spacing: 0; text-align: left; }
+
+/* ---- sign-up / log-in with Google or Microsoft (api/auth.js) ---- */
+.oauth { display: grid; gap: 0.6rem; margin-top: 0.2rem; }
+.oauth[hidden], .btn-oauth[hidden], .oauth-login[hidden] { display: none; }
+.oauth-note { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 0.2rem; }
+.btn-oauth {
+  display: flex; align-items: center; justify-content: center; gap: 0.7rem; width: 100%;
+  padding: 0.85rem 1rem; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--bg); color: var(--ink);
+  font-family: var(--sans); font-size: 0.95rem; font-weight: 500; text-decoration: none; cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.3s var(--ease);
+}
+.btn-oauth:hover { border-color: var(--ink); transform: translateY(-1px); }
+.btn-oauth svg { width: 20px; height: 20px; flex: none; }
+.oauth-login { display: grid; gap: 0.55rem; margin-top: 1rem; }
+.oauth-login .or { display: flex; align-items: center; gap: 0.8rem; font-family: var(--mono); font-size: 0.7rem; color: var(--faint); }
+.oauth-login .or::before, .oauth-login .or::after { content: ""; flex: 1; height: 1px; background: var(--hairline-soft); }
+.use-oauth .field[hidden] { display: none; }
+.apply-form [hidden] { display: none !important; }

@@ -6,6 +6,10 @@
       "destination": "/api/apply"
     },
     {
+      "source": "/auth/callback",
+      "destination": "/api/auth"
+    },
+    {
       "source": "/app/:path*",
       "destination": "/app"
     }

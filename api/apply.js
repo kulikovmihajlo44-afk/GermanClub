@@ -3,6 +3,7 @@
 const db = require('../lib/db');
 const H = require('../lib/http');
 const { generateId } = require('../lib/ids');
+const O = require('../lib/oauth');
 
 const noFormula = (v) => String(v || '').trim().replace(/^[\s=+\-@]+/, '').trim();   // spreadsheet-formula safety
 
@@ -47,6 +48,8 @@ module.exports = H.handler(async (req, res) => {
 
   const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
   if (existing.length) return H.send(res, 200, { ok: true, duplicate: true });  // never reveal the ID of an existing account
+  // once Google or Microsoft sign-in is set up, new accounts need a confirmed address (api/auth.js), not a typed one
+  if (O.enabled().length) return H.send(res, 403, { ok: false, verify: true, error: 'Please sign up with Google or Microsoft so we can confirm your e-mail address.' });
 
   for (let attempt = 0; attempt < 6; attempt++) {
     const id = generateId();

@@ -164,6 +164,11 @@
           </select>
         </div>
         <button type="submit" class="btn-solid">Submit application</button>
+        <div class="oauth" hidden>
+          <p class="oauth-note">Confirm your e-mail with your account — no password is shared with us.</p>
+          <a class="btn-oauth" data-p="google" href="#" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Continue with Google</span></a>
+          <a class="btn-oauth" data-p="microsoft" href="#" hidden><svg viewBox="0 0 23 23" aria-hidden="true"><path fill="#F35325" d="M1 1h10v10H1z"/><path fill="#81BC06" d="M12 1h10v10H12z"/><path fill="#05A6F0" d="M1 12h10v10H1z"/><path fill="#FFBA08" d="M12 12h10v10H12z"/></svg><span>Continue with Microsoft</span></a>
+        </div>
         <p class="privacy">Your data is kept private and used only for club coordination.</p>
         <p class="contact-line">Questions? <a href="mailto:MKULKOV@constructor.university">MKULKOV@constructor.university</a> · Mykhailo Kulikov</p>
       </form>
@@ -297,5 +302,35 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
+  <script>
+// Sign-up with a confirmed e-mail (api/auth.js): once Google or Microsoft is set up, name and e-mail come from the
+// provider and the form only asks for the level.
+document.addEventListener("DOMContentLoaded", function () {
+  var form = document.querySelector(".apply-form"), box = form && form.querySelector(".oauth");
+  if (!form || !box) return;
+  var MSG = { cancelled: "Sign-in was cancelled — nothing was saved.", unverified: "That account could not confirm the e-mail address. Try another account or provider.",
+    noaccount: "There is no account for this e-mail yet — choose your level and sign up below.", expired: "The sign-in took too long. Please try again.",
+    state: "The sign-in was interrupted. Please try again.", provider: "The provider did not complete the sign-in. Please try again.",
+    ratelimit: "Too many sign-ups from this device. Please try again later.", level: "Please choose your level first.", config: "This sign-in is not available right now." };
+  function say(text, err) { var n = form.querySelector(".form-note"); if (!n) return; n.textContent = text; n.classList.add("visible"); n.classList.toggle("error", !!err); }
+  var code = new URLSearchParams(location.search).get("auth");
+  if (code && MSG[code]) { say(MSG[code], code !== "noaccount"); history.replaceState(null, "", location.pathname + "?home=1#join"); }
+  fetch("/api/auth?a=providers").then(function (r) { return r.json(); }).then(function (p) {
+    if (!p || !(p.google || p.microsoft)) return;
+    form.classList.add("use-oauth"); box.hidden = false;
+    ["fullname", "email"].forEach(function (id) { var f = document.getElementById(id); f.required = false; f.closest(".field").hidden = true; });
+    form.querySelector("button[type=submit]").hidden = true;
+    Array.prototype.forEach.call(box.querySelectorAll(".btn-oauth"), function (b) {
+      var pr = b.getAttribute("data-p"); if (!p[pr]) return; b.hidden = false;
+      b.addEventListener("click", function (e) {
+        e.preventDefault();
+        var level = document.getElementById("level").value;
+        if (!level) { say(MSG.level, true); document.getElementById("level").focus(); return; }
+        location.href = "/api/auth?a=start&p=" + pr + "&intent=signup&level=" + encodeURIComponent(level);
+      });
+    });
+  }).catch(function () {});
+});
+  </script>
 </body>
 </html>
