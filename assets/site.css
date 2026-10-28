@@ -276,9 +276,9 @@ h1 em, h2 em { font-style: normal; color: var(--faint); }
 /* join: the Elbphilharmonie rises behind the heading */
 .join-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(2rem, 5vw, 4rem); align-items: start; }
 .join-side { position: relative; }
-.join-side .ascii {                             /* Victoria: twice the old size, reaching the left edge of the page */
-  --to-edge: max(var(--pad), (100vw - var(--maxw)) / 2);
-  height: 600px; width: calc(100% + var(--to-edge)); margin: 1.2rem 0 0 calc(-1 * var(--to-edge));
+.join-side .ascii {                             /* Victoria fills the left column: as wide as the text, 5:8 tall */
+  width: 100%; height: auto; aspect-ratio: 5 / 8; margin: 1.6rem 0 0;
+  -webkit-mask-image: linear-gradient(#000 90%, transparent); mask-image: linear-gradient(#000 90%, transparent);
 }
 .join-side .subtext { margin-top: 1rem; max-width: 26rem; }
 .apply-form { border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface); padding: clamp(1.4rem, 4vw, 2.2rem); display: flex; flex-direction: column; }
@@ -328,7 +328,7 @@ h1 em, h2 em { font-style: normal; color: var(--faint); }
   .hero { padding-top: 5.5rem; padding-bottom: 4rem; }
   .hero-art .ascii { height: 46svh; }
   .what-art { order: -1; } .what-art .ascii { height: 300px; }
-  .join-side .ascii { height: 440px; width: calc(100% + 2 * var(--pad)); margin-left: calc(-1 * var(--pad)); }
+  .join-side .ascii { width: calc(100% + 2 * var(--pad)); margin-left: calc(-1 * var(--pad)); }
   .hero-foot { display: none; }
 }
 @media (max-width: 860px) { .nav-links a:not(.btn-pill) { display: none; } .nav-links { gap: 0.6rem; } }
