@@ -129,6 +129,7 @@ if (typeof document !== "undefined") (function () {
   DK.renderHeader(document.getElementById("top"), "public");
   function h(tag, a, kids) { var e = document.createElement(tag); Object.keys(a || {}).forEach(function (k) { var v = a[k]; if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v); }); (function add(l) { (l || []).forEach(function (c) { if (c == null || c === false) return; if (Array.isArray(c)) return add(c); e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); }); })(kids); return e; }
   function mount() { main.innerHTML = ""; Array.prototype.slice.call(arguments).forEach(function (n) { if (n) main.appendChild(n); }); window.scrollTo(0, 0); }
+  function shuffled(n) { var a = []; for (var k = 0; k < n; k++) a.push(k); for (var j = n - 1; j > 0; j--) { var r = Math.floor(Math.random() * (j + 1)), t = a[j]; a[j] = a[r]; a[r] = t; } return a; }  // display order of the options (the answer key is not position based)
   var eyebrow = function (t) { return h("p", { "class": "eyebrow" }, [h("span", { "class": "mark mark-circle", "aria-hidden": "true" }), t]); };
   var bank = [], history = [], seq = [], answers = {}, current = null, order = [], busy = false;
   function intro() {
