@@ -1,5 +1,5 @@
 // Deutsch-Klub — motion design for the landing page: typed command line, staggered reveals, decoding labels,
-// counting metrics, scroll progress and a live countdown to the next session. No libraries; respects reduced motion.
+// counting metrics, scroll progress and a live countdown to the next session (dates from Notion). No libraries; respects reduced motion.
 (function () {
   "use strict";
   var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -100,34 +100,38 @@
   window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
   onScroll();
 
-  // ---------- countdown to the next Sunday session (dates from content/club.json, Berlin time) ----------
+  // ---------- countdown to the next session (from the Notion "Sessions" table via /api/app?a=next-session) ----------
+  // Without a planned session the widget says "unknown" rather than guessing a date.
   var cd = document.querySelector("[data-countdown]");
   if (cd) {
-    fetch("/content/club.json").then(function (r) { return r.json(); }).then(function (club) {
-      function berlinOffsetMin(date) {            // minutes Berlin is ahead of UTC at that moment
-        var p = {}; new Intl.DateTimeFormat("en-US", { timeZone: club.tz || "Europe/Berlin", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
-          .formatToParts(date).forEach(function (x) { p[x.type] = x.value; });
-        return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - date.getTime()) / 60000;
-      }
-      function sessionStart(day) {               // "YYYY-MM-DD" + club.start (Berlin) -> Date
-        var hm = club.start.split(":"), guess = new Date(day + "T" + hm[0] + ":" + hm[1] + ":00Z");
-        return new Date(guess.getTime() - berlinOffsetMin(guess) * 60000);
-      }
-      function next() {
-        var d = new Date(club.first + "T12:00:00Z"), end = new Date(club.last + "T12:00:00Z"), now = Date.now();
-        var dur = (parseInt(club.end, 10) - parseInt(club.start, 10)) * 3600000;
-        while (d <= end) { var s = sessionStart(d.toISOString().slice(0, 10)); if (s.getTime() + dur > now) return { start: s, live: s.getTime() <= now }; d = new Date(d.getTime() + 7 * 864e5); }
-        return null;
-      }
-      var label = cd.querySelector("[data-cd-label]"), cells = cd.querySelectorAll("[data-cd]");
-      function tick() {
-        var n = next();
-        if (!n) { if (label) label.textContent = "season finished · new dates soon"; return; }
-        if (label) label.textContent = n.live ? "session is live now" : n.start.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: club.tz || "Europe/Berlin" }) + " · " + club.start + " (Berlin)";
-        var ms = Math.max(0, n.start.getTime() - Date.now()), v = { d: Math.floor(ms / 864e5), h: Math.floor(ms / 36e5) % 24, m: Math.floor(ms / 6e4) % 60, s: Math.floor(ms / 1e3) % 60 };
-        Array.prototype.forEach.call(cells, function (c) { var k = c.getAttribute("data-cd"), t = (v[k] < 10 ? "0" : "") + v[k]; if (c.textContent !== t) c.textContent = t; });
-      }
-      tick(); setInterval(tick, 1000);
-    }).catch(function () {});
+    var TZ = "Europe/Berlin", $ = function (s) { return cd.querySelector(s); };
+    var label = $("[data-cd-label]"), place = $("[data-cd-place]"), level = $("[data-cd-level]"), state = $("[data-cd-state]");
+    var cells = cd.querySelectorAll("[data-cd]"), session = null, timer = 0;
+    var set = function (el, t) { if (el && el.textContent !== t) el.textContent = t; };
+    function cellsTo(v) { Array.prototype.forEach.call(cells, function (c) { var k = c.getAttribute("data-cd"); set(c, v ? (v[k] < 10 ? "0" : "") + v[k] : "--"); }); }
+    function hm(d) { return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ }); }
+    function tick() {
+      var now = Date.now(), s = new Date(session.start).getTime(), e = new Date(session.end).getTime();
+      if (now >= e) { clearInterval(timer); return load(); }                 // over: ask for the next one
+      if (now >= s) { set(label, "session is live now · until " + hm(new Date(e)) + " (Berlin)"); return cellsTo({ d: 0, h: 0, m: 0, s: 0 }); }
+      var ms = s - now;
+      cellsTo({ d: Math.floor(ms / 864e5), h: Math.floor(ms / 36e5) % 24, m: Math.floor(ms / 6e4) % 60, s: Math.floor(ms / 1e3) % 60 });
+    }
+    function show(x) {
+      session = x;
+      if (!x) { set(place, "unknown"); set(label, "unknown"); set(state, "no data"); cellsTo(null); return; }
+      var st = new Date(x.start);
+      set(place, x.place || "unknown");
+      if (x.level) set(level, x.level);
+      set(label, st.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + " · " + hm(st) + " (Berlin)");
+      set(state, "synced");
+      tick(); clearInterval(timer); timer = setInterval(tick, 1000);
+    }
+    function load() {
+      fetch("/api/app?a=next-session").then(function (r) { return r.json(); })
+        .then(function (j) { show(j && j.ok && j.session && j.session.start ? j.session : null); })
+        .catch(function () { show(null); });
+    }
+    load();
   }
 })();

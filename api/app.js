@@ -1,4 +1,5 @@
 // One function for all member data (keeps us far below the 12-function limit of the free Vercel plan).
+//   GET  ?a=next-session     the next planned club session from Notion (lib/sessions.js) or {session:null} (public)
 //   GET  ?a=state            dashboard data (profile, latest placement, lesson progress, card counts)
 //   GET  ?a=test.bank        the adaptive placement test's question bank with difficulty points, WITHOUT the answer key (public)
 //   POST ?a=test.check       {id, answer:index}  -> {correct}   one answer at a time (public)
@@ -20,6 +21,7 @@ const P = require('../lib/placement');
 const F = require('../lib/fsrs');
 const { formatId } = require('../lib/ids');
 const V = require('../assets/validate');
+const S = require('../lib/sessions');
 
 const NEW_PER_DAY = 10;
 const GOALS = ['goethe', 'career', 'interest'];
@@ -60,9 +62,15 @@ async function cardCounts(userId) {
 }
 
 module.exports = H.handler(async (req, res) => {
-  if (!db.configured()) return H.send(res, 503, { ok: false, error: 'not_configured' });
   const url = new URL(req.url || '/', 'http://x');
   const a = url.searchParams.get('a') || '';
+  // ---- public: the next club session from the Notion "Sessions" table (needs no database of ours)
+  if (a === 'next-session' && req.method === 'GET') {
+    const r = await S.nextSession();
+    return H.send(res, 200, { ok: true, session: r.session, reason: r.reason || null },
+      { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300' });
+  }
+  if (!db.configured()) return H.send(res, 503, { ok: false, error: 'not_configured' });
   const isPost = req.method === 'POST';
   if (!isPost && req.method !== 'GET') { res.setHeader('Allow', 'GET, POST'); return H.send(res, 405, { ok: false, error: 'Method not allowed' }); }
   if (isPost && !H.sameOrigin(req)) return H.send(res, 403, { ok: false, error: 'Forbidden' });
