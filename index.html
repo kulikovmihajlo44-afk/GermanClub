@@ -15,6 +15,7 @@
   <script src="assets/validate.js" defer></script>
   <script src="assets/ascii3d.js" defer></script>
   <script src="assets/motion.js" defer></script>
+  <script src="assets/player.js" defer></script>
   <title>Deutsch-Klub — German, re-engineered for you</title>
   <meta name="description" content="Deutsch-Klub: a student-run university German club with its own learning platform — adaptive placement test, grammar lessons, spaced-repetition flashcards and weekly sessions. All levels, A0 to C1.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -69,6 +70,56 @@
       </div>
     </div>
     <div class="hero-foot" aria-hidden="true"><span>A0 — C1 · all levels</span><span class="scroll">scroll</span></div>
+  </section>
+
+  <!-- ============ INTRO VIDEO ============ -->
+  <section class="section intro" id="intro">
+    <div class="section-inner">
+      <div class="intro-head reveal">
+        <div>
+          <p class="sec-no" data-scramble="00 / Intro">00 / Intro</p>
+          <h2>The club in three and a half minutes.</h2>
+        </div>
+        <p class="subtext">What we do, how the app and the Sundays fit together. Press play whenever you are ready.</p>
+      </div>
+
+      <figure class="player reveal" data-player data-duration="219"
+              data-chapters="0:Idea|5:Learners|14.75:Diagnosis|34:System|58:Advisor|96.5:The app|117.25:Sundays|133.5:You|140:Levels|153:Join|182.5:FAQ|200:Outro">
+        <div class="term-bar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="p-file">~/deutsch-klub/explainer.mp4</span>
+          <span class="p-now" data-now aria-live="polite">01/12 · idea</span>
+        </div>
+        <div class="p-stage">
+          <video preload="metadata" playsinline poster="/assets/video/explainer-poster.webp?v=1" aria-label="Deutsch-Klub explainer video">
+            <source src="/assets/video/deutsch-klub-explainer.mp4?v=1" type="video/mp4">
+          </video>
+          <button class="p-big" type="button" data-big aria-label="Play the video">
+            <span class="p-big-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg></span>
+            <span class="p-big-label" data-big-label>play · 03:39</span>
+          </button>
+        </div>
+        <div class="p-bar">
+          <button class="p-btn" type="button" data-toggle aria-label="Play">
+            <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>
+            <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>
+          </button>
+          <button class="p-btn" type="button" data-skip="-10" aria-label="Back 10 seconds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6 4 12l7 6zM20 6l-7 6 7 6z" fill="currentColor"/></svg></button>
+          <button class="p-btn" type="button" data-skip="10" aria-label="Forward 10 seconds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 6 7 6-7 6zM4 6l7 6-7 6z" fill="currentColor"/></svg></button>
+          <span class="p-time"><span data-cur>00:00</span> / <span data-dur>03:39</span></span>
+          <div class="p-scrub">
+            <div class="p-track" aria-hidden="true"><i class="p-fill"></i><span class="p-ticks" data-ticks></span><i class="p-head"></i></div>
+            <span class="p-tip" data-tip aria-hidden="true"></span>
+            <input type="range" min="0" max="1000" step="1" value="0" data-range aria-label="Seek">
+          </div>
+          <button class="p-btn" type="button" data-mute aria-label="Mute">
+            <svg class="i-vol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+            <svg class="i-mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          </button>
+          <button class="p-btn" type="button" data-full aria-label="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+        </div>
+      </figure>
+    </div>
   </section>
 
   <!-- ============ WHAT WE DO ============ -->
