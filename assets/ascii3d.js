@@ -8,7 +8,8 @@
 // optional data-: size (font px), res (sample width),
 // speed (rad/s), yaw, pitch, floor ("1" adds a ring plaza), fps, shade ("1": a grey-scale photo cut-out is drawn as a
 // lit relief — its brightness is the colour and the slopes of its brightness are the surface normals, so faces and
-// folds catch the light as the object turns), fit ("x,y": how much of the box the object may fill; default "0.38,0.84").
+// folds catch the light as the object turns), fit ("x,y": how much of the box the object may fill; default "0.38,0.84"; above 1 the object is larger than its box
+// and gets cropped), anchor ("top": the top of the object sits at the top of the box instead of the centre).
 // No libraries; only on-screen objects are rendered;
 // with reduced motion every object is drawn once, standing still.
 (function () {
@@ -260,6 +261,7 @@
     this.fps = parseFloat(ds.fps) || (lowPower ? 20 : 30);
     this.floor = ds.floor === "1";
     this.visible = false; this.shown = 0; this.last = 0; this.frames = 0; this.fpsT = 0;
+    this.anchorTop = ds.anchor === "top";
     this.shape = ds.shape || ""; this.basePitch = this.pitch; this.wobble = ds.wobble !== undefined ? parseFloat(ds.wobble) : 0.35;
     this.drag = null; this.cloud = null; this.vp = el.closest(".viewport, .lm, [data-stats]");
     var self = this;
@@ -311,7 +313,7 @@
     var lit = this.cloud.lit, st = this.cloud.stride || 4, zb = this.zb, amb = this.cloud.amb || 0.12;
     if (lit) zb.fill(-1e9);
     var cY = Math.cos(this.yaw), sY = Math.sin(this.yaw), cP = Math.cos(this.pitch), sP = Math.sin(this.pitch);
-    var ox = cols, oy = rows * 1.5, sx = this.sx * 2, sy = this.sy * 3;
+    var sx = this.sx * 2, sy = this.sy * 3, ox = cols, oy = this.anchorTop ? SHc * 0.04 + this.cloud.h / 2 * sy : rows * 1.5;
     for (var i = 0, o = 0; i < N; i++, o += st) {
       var x = pts[o], y = pts[o + 1], z = pts[o + 2];
       var x1 = x * cY + z * sY, z1 = -x * sY + z * cY;
