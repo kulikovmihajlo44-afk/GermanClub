@@ -273,20 +273,8 @@ h1 em, h2 em { font-style: normal; color: var(--faint); }
 .p-tip { position: absolute; bottom: 100%; transform: translateX(-50%); margin-bottom: 4px; padding: 0.2rem 0.45rem; border-radius: 6px;
   background: var(--ink); color: var(--bg); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; }
 .p-scrub:hover .p-tip { opacity: 1; }
-.p-chapters { list-style: none; display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid var(--hairline-soft); }
-.p-chapters li + li { border-left: 1px solid var(--hairline-soft); }
-.p-chapters li:nth-child(6n + 1) { border-left: 0; }
-.p-chapters li:nth-child(n + 7) { border-top: 1px solid var(--hairline-soft); }
-.p-chapters button { width: 100%; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; padding: 0.7rem 0.9rem; text-align: left;
-  border: 0; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 0.72rem; cursor: pointer; position: relative; transition: color 0.2s ease, background 0.2s ease; }
-.p-chapters b { font-weight: 500; color: var(--faint); grid-row: span 2; }
-.p-chapters time { color: var(--faint); font-size: 0.66rem; }
-.p-chapters button:hover, .p-chapters button:focus-visible { color: var(--ink); background: var(--bg); outline: none; }
-.p-chapters button.on { color: var(--ink); }
-.p-chapters button.on::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 2px; background: var(--ink); }
 .player:fullscreen { border-radius: 0; display: flex; flex-direction: column; background: #0a0a0a; }
 .player:fullscreen .p-stage { flex: 1; aspect-ratio: auto; }
-.player:fullscreen .p-chapters { display: none; }
 
 /* what we do: three short lines, the Reichstag stands beside them */
 .what { display: grid; grid-template-columns: 1fr 1.05fr; gap: clamp(1.5rem, 4vw, 4rem); align-items: center; }
@@ -385,10 +373,6 @@ h1 em, h2 em { font-style: normal; color: var(--faint); }
 @media (max-width: 960px) {
   .hero-grid, .what, .sched, .join-grid { grid-template-columns: 1fr; }
   .intro-head { grid-template-columns: 1fr; align-items: start; }
-  .p-chapters { grid-template-columns: repeat(3, 1fr); }
-  .p-chapters li:nth-child(n) { border-left: 1px solid var(--hairline-soft); border-top: 1px solid var(--hairline-soft); }
-  .p-chapters li:nth-child(3n + 1) { border-left: 0; }
-  .p-chapters li:nth-child(-n + 3) { border-top: 0; }
   .hero { padding-top: 5.5rem; padding-bottom: 4rem; }
   .hero-art .ascii { height: 46svh; }
   .what-art { order: -1; } .what-art .ascii { height: 300px; }
@@ -400,10 +384,6 @@ h1 em, h2 em { font-style: normal; color: var(--faint); }
 @media (max-width: 600px) {
   .p-bar { flex-wrap: wrap; row-gap: 0; } .p-scrub { order: -1; flex: 1 1 100%; margin: 0 0.2rem; } .p-time { margin-right: auto; }
   .player .term-bar .p-file { display: none; }
-  .p-chapters { grid-template-columns: repeat(2, 1fr); }
-  .p-chapters li:nth-child(n) { border-left: 1px solid var(--hairline-soft); border-top: 1px solid var(--hairline-soft); }
-  .p-chapters li:nth-child(2n + 1) { border-left: 0; }
-  .p-chapters li:nth-child(-n + 2) { border-top: 0; }
   .hero-cta .btn-solid, .hero-cta .btn-ghost { flex: 1 1 100%; }
   .scale-bar { gap: 3px; } .scale-bar button { font-size: 0.66rem; }
   .what-list li { grid-template-columns: 2.4rem 1fr; } .what-list a { grid-column: 2; }

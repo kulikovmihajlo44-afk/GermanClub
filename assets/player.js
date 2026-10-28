@@ -1,6 +1,6 @@
 // Deutsch-Klub — the intro video player (index.html #intro). Never autoplays: the video starts only when the visitor
-// presses play. Play / pause, ±10 s, scrubbing with a time + chapter hint, chapters (the list under the video and
-// ticks on the scrubber), mute and full screen. Keyboard while the player has focus: space / k play, ← → 5 s,
+// presses play. Play / pause, ±10 s, scrubbing with a time + chapter hint, chapters (data-chapters="sec:Title|…",
+// shown as ticks on the scrubber), mute and full screen. Keyboard while the player has focus: space / k play, ← → 5 s,
 // j / l 10 s, m mute, f full screen. The chapter in the window bar follows the playhead.
 (function () {
   "use strict";
@@ -9,8 +9,9 @@
   var v = root.querySelector("video"), q = function (s) { return root.querySelector(s); };
   var big = q("[data-big]"), bigLabel = q("[data-big-label]"), toggle = q("[data-toggle]"), range = q("[data-range]");
   var cur = q("[data-cur]"), dur = q("[data-dur]"), now = q("[data-now]"), tip = q("[data-tip]"), ticks = q("[data-ticks]");
-  var chapters = Array.prototype.map.call(root.querySelectorAll(".p-chapters button"), function (b, i) {
-    return { t: parseFloat(b.getAttribute("data-t")) || 0, el: b, n: i + 1, label: b.childNodes[1].textContent.trim() };
+  var chapters = (root.getAttribute("data-chapters") || "0:Intro").split("|").map(function (c, i) {
+    var k = c.indexOf(":");
+    return { t: parseFloat(c.slice(0, k)) || 0, n: i + 1, label: c.slice(k + 1).trim() };
   });
   var seeking = false, last = -1;
 
@@ -28,7 +29,6 @@
     if (c && c.n !== last) {
       last = c.n;
       now.textContent = pad2(c.n) + "/" + pad2(chapters.length) + " · " + c.label.toLowerCase();
-      chapters.forEach(function (x) { x.el.classList.toggle("on", x === c); x.el.setAttribute("aria-current", x === c ? "true" : "false"); });
     }
   }
   function layoutTicks() {
@@ -49,7 +49,6 @@
   root.querySelectorAll("[data-skip]").forEach(function (b) {
     b.addEventListener("click", function () { seekTo(v.currentTime + parseFloat(b.getAttribute("data-skip"))); });
   });
-  chapters.forEach(function (c) { c.el.addEventListener("click", function () { seekTo(c.t); if (v.paused) play(); }); });
   q("[data-mute]").addEventListener("click", function () { v.muted = !v.muted; });
   q("[data-full]").addEventListener("click", function () {
     var fs = document.fullscreenElement || document.webkitFullscreenElement;
