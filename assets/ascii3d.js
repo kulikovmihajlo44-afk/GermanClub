@@ -6,7 +6,11 @@
 // Objects scan in line by line when they first appear, sway around their facade and can be dragged to any angle.
 // Usage: <pre class="ascii" data-src="/assets/img/x.webp"> or data-shape="ring|kugel|wuerfel" (avatars; lit, spinning);
 // optional data-: size (font px), res (sample width),
-// speed (rad/s), yaw, pitch, floor ("1" adds a ring plaza), fps. No libraries; only on-screen objects are rendered;
+// speed (rad/s), yaw, pitch, floor ("1" adds a ring plaza), fps, shade ("1": a grey-scale photo cut-out is drawn as a
+// lit relief — its brightness is the colour and the slopes of its brightness are the surface normals, so faces and
+// folds catch the light as the object turns), fit ("x,y": how much of the box the object may fill; default "0.38,0.84"; above 1 the object is larger than its box
+// and gets cropped), anchor ("top": the top of the object sits at the top of the box instead of the centre).
+// No libraries; only on-screen objects are rendered;
 // with reduced motion every object is drawn once, standing still.
 (function () {
   "use strict";
@@ -45,8 +49,8 @@
   })();
 
   // ---------- image -> point cloud (x in [-1, 1], y scaled alike, centred) ----------
-  function cloudFor(src, res, floor) {
-    var key = src + "|" + res + "|" + floor;
+  function cloudFor(src, res, floor, shade) {
+    var key = src + "|" + res + "|" + floor + "|" + (shade ? 1 : 0);
     if (clouds[key]) return clouds[key];
     clouds[key] = new Promise(function (resolve, reject) {
       var img = new Image(); img.decoding = "async"; img.onerror = reject;
@@ -63,6 +67,7 @@
             var i = (y * SW + x) * 4, lum = (d[i + 3] / 255) * (d[i] + d[i + 1] + d[i + 2]) / 765;
             L[y * SW + x] = lum; row += lum; I[(y + 1) * (SW + 1) + x + 1] = I[y * (SW + 1) + x + 1] + row;
           }
+          if (shade) return resolve(relief(L, I, SW, SH));
           for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
             var ax = Math.max(0, x - R), ay = Math.max(0, y - R), bx = Math.min(SW, x + R + 1), by = Math.min(SH, y + R + 1);
             var mean = (I[by * (SW + 1) + bx] - I[ay * (SW + 1) + bx] - I[by * (SW + 1) + ax] + I[ay * (SW + 1) + ax]) / ((bx - ax) * (by - ay));
@@ -87,6 +92,36 @@
       img.src = src;
     });
     return clouds[key];
+  }
+
+  // ---------- grey-scale cut-out -> lit relief (the "shader" for photo models) ----------
+  // Every pixel brighter than the black background becomes a point; its brightness is the albedo, a softened copy of
+  // the brightness is a height field, and the height field's slopes give each point a normal. The draw loop then lights
+  // it like the primitive models (z-buffer + diffuse light + tone ramp), so a face reads as a face, not as outlines.
+  function relief(L, I, SW, SH) {
+    var R = 3, H = new Float32Array(SW * SH), x, y, x0 = SW, x1 = 0, y0 = SH, y1 = 0, m = 0;
+    for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
+      var ax = Math.max(0, x - R), ay = Math.max(0, y - R), bx = Math.min(SW, x + R + 1), by = Math.min(SH, y + R + 1);
+      H[y * SW + x] = (I[by * (SW + 1) + bx] - I[ay * (SW + 1) + bx] - I[by * (SW + 1) + ax] + I[ay * (SW + 1) + ax]) / ((bx - ax) * (by - ay));
+      if (L[y * SW + x] > 0.06) { m++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (!m) throw new Error("empty");
+    var k = 2 / Math.max(1, x1 - x0), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, BUMP = 3;
+    var pts = new Float32Array(Math.ceil(m * 1.3) * 8), o = 0, n = 0;
+    for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
+      var a = L[y * SW + x];
+      if (a <= 0.06) continue;
+      var hx = (H[y * SW + Math.min(SW - 1, x + 1)] - H[y * SW + Math.max(0, x - 1)]) * BUMP;
+      var hy = (H[Math.max(0, y - 1) * SW + x] - H[Math.min(SH - 1, y + 1) * SW + x]) * BUMP;   // image y runs down
+      var nl = Math.sqrt(hx * hx + hy * hy + 1), px = (x - cx) * k, py = -(y - cy) * k, h = H[y * SW + x];
+      // front: the bright, raised side; back: a sparse, dimmer plate so a full turn never shows a hole
+      pts[o++] = px; pts[o++] = py; pts[o++] = DEPTH * (0.4 + h); pts[o++] = Math.pow(a, 0.85);
+      pts[o++] = -hx / nl; pts[o++] = -hy / nl; pts[o++] = 1 / nl; pts[o++] = 0; n++;
+      if ((x & 1) || (y & 1)) continue;                 // the back plate only needs every fourth pixel
+      pts[o++] = px; pts[o++] = py; pts[o++] = -DEPTH; pts[o++] = a * 0.45;
+      pts[o++] = 0; pts[o++] = 0; pts[o++] = -1; pts[o++] = 0; n++;
+    }
+    return { pts: pts, count: n, h: (y1 - y0) * k, stride: 8, lit: true, amb: 0.55, tone: [0.06, 0.72] };   // the photo's own light leads; tones stretched to full range
   }
 
   // ---------- models built from primitives (box, sphere, frustum / cone / cylinder, torus) ----------
@@ -226,10 +261,12 @@
     this.fps = parseFloat(ds.fps) || (lowPower ? 20 : 30);
     this.floor = ds.floor === "1";
     this.visible = false; this.shown = 0; this.last = 0; this.frames = 0; this.fpsT = 0;
+    this.anchorTop = ds.anchor === "top";
     this.shape = ds.shape || ""; this.basePitch = this.pitch; this.wobble = ds.wobble !== undefined ? parseFloat(ds.wobble) : 0.35;
     this.drag = null; this.cloud = null; this.vp = el.closest(".viewport, .lm, [data-stats]");
     var self = this;
-    (this.shape ? shapeCloud(this.shape) : cloudFor(ds.src, this.res, this.floor)).then(function (c) { self.cloud = c; self.measure(); self.draw(performance.now(), true); }, function () {});
+    var fit = String(ds.fit || "").split(","); this.fitX = parseFloat(fit[0]) || 0.38; this.fitY = parseFloat(fit[1]) || 0.84;
+    (this.shape ? shapeCloud(this.shape) : cloudFor(ds.src, this.res, this.floor, ds.shade === "1")).then(function (c) { self.cloud = c; self.measure(); self.draw(performance.now(), true); }, function () {});
     this.bindPointer();
   }
   Inst.prototype.measure = function () {
@@ -244,7 +281,7 @@
     this.sub = new Float32Array(this.cols * 2 * this.rows * 3);
     this.zb = new Float32Array(this.sub.length);
     var aspect = this.cw / this.lh, h = this.cloud ? this.cloud.h + (this.floor ? 0.25 : 0) : 1.4;
-    this.sx = Math.min(this.cols * 0.38, (this.rows * 0.84) / (h * aspect));   // character cells per unit (x)
+    this.sx = Math.min(this.cols * this.fitX, (this.rows * this.fitY) / (h * aspect));   // character cells per unit (x)
     this.sy = this.sx * aspect;
   };
   Inst.prototype.bindPointer = function () {
@@ -271,12 +308,12 @@
     }
     if (!this.shown && this.visible) this.shown = now;
 
-    var cols = this.cols, rows = this.rows, SWc = cols * 2, SHc = rows * 3, sub = this.sub, pts = this.cloud.pts, N = this.cloud.count;
+    var cols = this.cols, rows = this.rows, SWc = cols * 2, SHc = rows * 3, sub = this.sub, pts = this.cloud.pts, N = this.cloud.count, tone = this.cloud.tone;
     sub.fill(0);
-    var lit = this.cloud.lit, st = this.cloud.stride || 4, zb = this.zb;
+    var lit = this.cloud.lit, st = this.cloud.stride || 4, zb = this.zb, amb = this.cloud.amb || 0.12;
     if (lit) zb.fill(-1e9);
     var cY = Math.cos(this.yaw), sY = Math.sin(this.yaw), cP = Math.cos(this.pitch), sP = Math.sin(this.pitch);
-    var ox = cols, oy = rows * 1.5, sx = this.sx * 2, sy = this.sy * 3;
+    var sx = this.sx * 2, sy = this.sy * 3, ox = cols, oy = this.anchorTop ? SHc * 0.04 + this.cloud.h / 2 * sy : rows * 1.5;
     for (var i = 0, o = 0; i < N; i++, o += st) {
       var x = pts[o], y = pts[o + 1], z = pts[o + 2];
       var x1 = x * cY + z * sY, z1 = -x * sY + z * cY;
@@ -290,7 +327,7 @@
         var nx = pts[o + 4], ny = pts[o + 5], nz = pts[o + 6];
         var nx1 = nx * cY + nz * sY, nz1 = -nx * sY + nz * cY, ny1 = ny * cP - nz1 * sP, nz2 = ny * sP + nz1 * cP;
         var dif = -0.45 * nx1 + 0.55 * ny1 + 0.7 * nz2;
-        zb[idx] = z2; sub[idx] = pts[o + 3] * (0.12 + 0.88 * Math.max(0, dif));
+        zb[idx] = z2; sub[idx] = pts[o + 3] * (amb + (1 - amb) * Math.max(0, dif));
       } else {
         w = pts[o + 3] * (0.6 + 0.4 * (z2 + 1.2) / 2.4);
         if (w > sub[idx]) sub[idx] = w;        // strongest point per sub-cell: crisp lines, no blobs where points pile up
@@ -310,6 +347,7 @@
         var ch;
         if (lit) {                             // smooth lit surfaces read best as a tone ramp
           var avg = (s0 + s1 + s2 + s3 + s4 + s5) / 6;
+          if (tone) avg = Math.max(0.02, (avg - tone[0]) / (tone[1] - tone[0]) / 1.15);
           ch = TONES[Math.min(TONES.length - 1, Math.round(Math.pow(Math.min(1, avg * 1.15), 0.85) * (TONES.length - 1)))];
         } else {                               // line drawings: the glyph whose shape matches the sub-cells
           ch = LUT[lv(s0 * inv) + Q * (lv(s1 * inv) + Q * (lv(s2 * inv) + Q * (lv(s3 * inv) + Q * (lv(s4 * inv) + Q * lv(s5 * inv)))))];
